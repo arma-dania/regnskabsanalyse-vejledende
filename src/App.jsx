@@ -5,7 +5,6 @@ import NogletalKort from './components/NogletalKort.jsx'
 import { emptyDataset, FIELDS, SECTIONS } from './lib/model.js'
 import { nogletalFor, manglerOmsaetning, OMRAADER, beregnAlle, byggIndeksNogletal, formatVaerdi, procentvisAendring, formatAendring, aendringsretning } from './lib/nogletal.js'
 import { hentExcel } from './lib/exportExcel.js'
-import { hentWord } from './lib/exportWord.js'
 import AnalyseTrin from './components/AnalyseTrin.jsx'
 import VejledningTrin from './components/VejledningTrin.jsx'
 import { analyser } from './analyse/analyse.js'
@@ -118,21 +117,36 @@ export default function App () {
   }
   const harData = dataset.aar.some(y => FIELDS.some(f => y.values[f.key] != null))
 
-  async function eksporterWord () {
-    if (trin !== 3) {
-      setTrin(3)
-      setKvittering('Graferne skal være tegnet, før de kan lægges i Word. Tryk igen om et øjeblik.')
-      return
-    }
-    setTravl('word'); setKvittering(null)
+  // "Hent Word": brugeren krydser af, hvad dokumentet skal indeholde.
+  const [wordValg, setWordValg] = useState(null) // null = boksen er lukket
+  const [ventWord, setVentWord] = useState(null) // valg, der venter på graferne
+  const aabnWord = () => setWordValg(v => (v ? null : { noegletal: true, analyse: !!analyse, vejledning: !!analyse }))
+  async function danWord (valgt) {
+    setWordValg(null); setTravl('word'); setKvittering(null)
     try {
-      const navn = await hentWord(dataset)
+      const { hentSamletWord } = await import('./lib/samletWord.js')
+      const navn = await hentSamletWord({ dataset, analyse, prosa: gyldigProsa, valgt })
       setKvittering(`${navn} er hentet.`)
     } catch (e) {
       setKvittering('Word-dokumentet kunne ikke dannes: ' + e.message)
     }
     setTravl(null)
   }
+  function eksporterWord (valgt) {
+    // Graferne lægges i Word fra trin 3, hvor de er tegnet.
+    if (valgt.noegletal && trin !== 3) { setWordValg(null); setVentWord({ valgt, fra: trin }); setTrin(3); return }
+    danWord(valgt)
+  }
+  useEffect(() => {
+    if (!ventWord || trin !== 3) return
+    const t = setTimeout(async () => {
+      const { valgt, fra } = ventWord
+      setVentWord(null)
+      await danWord(valgt)
+      setTrin(fra)
+    }, 800)
+    return () => clearTimeout(t)
+  }, [ventWord, trin])
 
   function eksporterExcel () {
     setTravl('excel'); setKvittering(null)
@@ -168,9 +182,27 @@ export default function App () {
             <button className="knap" onClick={eksporterExcel} disabled={!harData || travl === 'excel'}>
               {travl === 'excel' ? 'Danner …' : 'Hent Excel'}
             </button>
-            <button className="knap primaer" onClick={eksporterWord} disabled={!harData || travl === 'word'}>
-              {travl === 'word' ? 'Danner …' : 'Hent Word'}
-            </button>
+            <span className="word-valg-holder">
+              <button className="knap primaer" onClick={aabnWord} disabled={!harData || travl === 'word' || !!ventWord} aria-expanded={!!wordValg}>
+                {travl === 'word' || ventWord ? 'Danner …' : 'Hent Word'}
+              </button>
+              {wordValg && (
+                <div className="word-valg" role="dialog" aria-label="Indhold i Word-dokumentet">
+                  <strong>Word-dokumentet skal indeholde</strong>
+                  {[['noegletal', 'Nøgletal og grafer', true], ['analyse', 'Analyse (vejledende besvarelse)', !!analyse], ['vejledning', 'Underviservejledning', !!analyse]].map(([id, navn, mulig]) => (
+                    <label key={id} className={'afkryds' + (mulig ? '' : ' slukket')}>
+                      <input type="checkbox" disabled={!mulig} checked={mulig && !!wordValg[id]} onChange={e => setWordValg(v => ({ ...v, [id]: e.target.checked }))} />
+                      {' '}{navn}
+                    </label>
+                  ))}
+                  {!analyse && <p className="hjaelp">Analysen kan først dannes, når der er tal nok til den.</p>}
+                  <div className="knap-raekke">
+                    <button className="knap primaer lille" disabled={!['noegletal', 'analyse', 'vejledning'].some(k => wordValg[k])} onClick={() => eksporterWord(wordValg)}>Hent</button>
+                    <button className="knap lys lille" onClick={() => setWordValg(null)}>Annullér</button>
+                  </div>
+                </div>
+              )}
+            </span>
           </div>
         </div>
         <nav className="trin-navigation" aria-label="Trin">
@@ -408,8 +440,9 @@ function Velkomstside ({ gaaTilTrin }) {
       </div>
 
       <p className="sektion-intro" style={{ maxWidth: '70ch' }}>
-        Nøgletallene hentes som Excel- eller Word-fil med knapperne øverst. Den vejledende
-        besvarelse og underviservejledningen hentes som Word under trin 4 og 5.
+        Nøgletallene hentes som Excel-fil med knappen øverst. "Hent Word" samler det, du krydser
+        af – nøgletal og grafer, analysen og underviservejledningen – i ét dokument. Besvarelsen og
+        vejledningen kan også hentes hver for sig under trin 4 og 5.
       </p>
 
       <button className="knap primaer" onClick={() => gaaTilTrin(1)}>Kom i gang</button>

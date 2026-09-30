@@ -53,10 +53,13 @@ function trinTekst(prosa, g, nr) {
   return prosa?.grupper?.[g.id]?.[`trin${nr}`] || g[`trin${nr}`].join(" ");
 }
 
+export const besvarelseDok = (a, prosa = {}) => dok(besvarelseBoern(a, prosa));
+export const vejledningDok = (a, prosa = {}) => dok(vejledningBoern(a, prosa));
 export const besvarelseDocx = (a, prosa) => Packer.toBlob(besvarelseDok(a, prosa));
 export const vejledningDocx = (a, prosa) => Packer.toBlob(vejledningDok(a, prosa));
 
-export function besvarelseDok(a, prosa = {}) {
+/** Den vejledende besvarelses indhold – også brugt i det samlede Word-dokument. */
+export function besvarelseBoern(a, prosa = {}) {
   const dele = [
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(`Vejledende besvarelse – ${a.navn}`)] }),
     p("Regnskabsanalyse på formuleringstrappen: trin 1-3 for hvert nøgletal og hver gruppe af nøgletal, en delkonklusion for hvert analyseområde og trin 4 i den samlede konklusion.", { run: { italics: true } }),
@@ -91,10 +94,11 @@ export function besvarelseDok(a, prosa = {}) {
     punkt("Nøgletal, der deler forklaring og målestok, er skrevet sammen som én gruppe: kapacitetsgrad, nulpunkt og sikkerhedsmargin; anlæggenes omsætningshastigheder; varelager, debitorer og kreditorer; likviditetsgrad I og II; P/E og kurs/indre værdi."),
     punkt("Ændringer i procentnøgletal er i procentpoint; andre ændringer i procent. En ændring nævnes, når den er mindst ½ procentpoint eller 5 %."),
     punkt("Fremmedkapitalens forrentning er regnet på al fremmedkapital, også rentefri gæld. Den faktiske lånerente er derfor højere."));
-  return dok(dele);
+  return dele;
 }
 
-export function vejledningDok(a, prosa = {}) {
+/** Underviservejledningens indhold – også brugt i det samlede Word-dokument. */
+export function vejledningBoern(a, prosa = {}) {
   const k = a.konklusion;
   const dele = [
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(`Underviservejledning – ${a.navn}`)] }),
@@ -147,7 +151,7 @@ export function vejledningDok(a, prosa = {}) {
     punkt("Hvis I var ledelsen: hvad er det første, I ville gøre, og hvilket nøgletal skal vise, at det virker?"));
   for (const f of a.faldgruber.filter(f => f.omraade === "konklusion")) dele.push(...faldgrubeAfsnit(f));
 
-  if (a.beretning) {
+  if (a.beretning && a.brugCitater) {
     dele.push(h("Bilag: Ledelsesberetningen", HeadingLevel.HEADING_1),
       p("Som indlæst fra årsrapporten. Brug den til at holde ledelsens forklaringer op mod nøgletallene.", { run: { italics: true } }));
     for (const afsnit of a.beretning.split(/\n+/)) if (afsnit.trim()) dele.push(p(afsnit.trim(), { run: { size: 20 } }));
@@ -155,7 +159,7 @@ export function vejledningDok(a, prosa = {}) {
 
   dele.push(h("Tjekliste: hvornår er et trin nået?", HeadingLevel.HEADING_1),
     tabel(["Trin", "Kravet"], TRIN.map(t => [`${t.nr} ${t.navn}`, t.krav]), [25, 75]));
-  return dok(dele);
+  return dele;
 }
 
 /** Ledelsens egne ord – til at holde op mod tallene. */
@@ -176,7 +180,8 @@ function faldgrubeAfsnit(f) {
   ];
 }
 
-function dok(children) {
+/** Én sektion pr. del; hver del starter på en ny side. */
+export function dok(...dele) {
   return new Document({
     creator: "Regnskabsanalyse – vejledende",
     styles: {
@@ -188,7 +193,7 @@ function dok(children) {
         { id: "Heading3", name: "Heading 3", run: { size: 23, bold: true, color: "555555" } },
       ],
     },
-    sections: [{ properties: {}, children }],
+    sections: dele.map(children => ({ properties: {}, children })),
   });
 }
 

@@ -16,6 +16,9 @@ export const tomAnalyse = () => ({
   // Rettelser til det, importen fandt. null = brug det indlæste.
   udbytte: { foreslaaet: [null, null, null], betalt: [null, null, null] },
   beretning: null,
+  // Citater fra ledelsesberetningen i analysen – kan slås fra, når
+  // beretningen ikke siger noget brugbart om tallene.
+  brugCitater: true,
 });
 
 const hovedaar = doc => Math.max(...(doc.kolonner || []).map(k => Number(k.navn)).filter(Number.isFinite));
@@ -64,6 +67,7 @@ export function fraDataset(dataset, fund = []) {
     profil: a.profil,
     forretningsmodel: a.forretningsmodel,
     beretning: a.beretning ?? indlaest.beretning,
+    brugCitater: a.brugCitater !== false,
     udbytte,
     kolonner: [
       { aar: primoNavn(aar[0]), v: withDerived(vist.primo || {}) },

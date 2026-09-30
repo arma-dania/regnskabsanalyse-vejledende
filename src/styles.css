@@ -329,3 +329,10 @@ details summary { cursor: pointer; font-size: 13px; color: var(--petrol); margin
 .delkonklusion p { margin: 2px 0; }
 .indledning { margin: 0 0 8px; font-style: italic; }
 .delkonklusion-titel { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--petrol); }
+.afkryds { display: block; margin: 6px 0 4px; cursor: pointer; }
+.afkryds input { margin-right: 4px; }
+.word-valg-holder { position: relative; display: inline-block; }
+.word-valg { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 260px; padding: 12px 14px; background: var(--kort, #fff); color: var(--blaek); border: 1px solid var(--linje); border-radius: var(--radius, 6px); box-shadow: 0 6px 20px rgba(0,0,0,.15); text-align: left; }
+.word-valg strong { display: block; margin-bottom: 6px; }
+.word-valg .knap-raekke { margin-top: 10px; }
+.afkryds.slukket { opacity: .5; }

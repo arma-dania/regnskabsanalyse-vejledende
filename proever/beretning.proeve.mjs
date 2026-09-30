@@ -143,6 +143,20 @@ test("udbyttet indgår i soliditeten, pengestrømmen og konklusionen", () => {
   assert.ok(a.faldgruber.some(f => f.gruppe === "sol" && f.tema === "manglende-aarsag"));
 });
 
+test("citaterne fra beretningen kan slås fra", () => {
+  const { d, fund } = datasetMedUdbytte();
+  const med = analyser(...Object.values(fraDataset(d, fund)).slice(0, 2));
+  assert.ok(Object.values(med.omraader).flatMap(o => o.grupper).some(g => g.beretning.length), "citater findes, når det er slået til");
+  d.analyse = { brugCitater: false };
+  const { kase, noegletal } = fraDataset(d, fund);
+  const a = analyser(kase, noegletal);
+  const alle = Object.values(a.omraader).flatMap(o => o.grupper).flatMap(g => g.beretning);
+  assert.equal(alle.length, 0);
+  assert.equal(a.brugCitater, false);
+  assert.ok(a.beretning.length > 0, "beretningen står der stadig");
+  assert.ok(!a.faldgruber.some(f => f.tema === "beretning-ukritisk"));
+});
+
 test("en rettet værdi vinder over den indlæste", () => {
   const { d, fund } = datasetMedUdbytte();
   d.analyse = { udbytte: { foreslaaet: [null, null, 80000], betalt: [null, null, null] } };

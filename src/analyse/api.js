@@ -71,6 +71,6 @@ export function skrivKonklusion(a, prosa, kode) {
     anbefalinger: k.anbefalinger.join("\n"),
     afvigelser: k.afvigelser.join("\n"),
     udkast: k.udkast.join(" "),
-    beretning: a.beretning || "",
+    beretning: a.brugCitater ? a.beretning || "" : "",
   }, kode);
 }

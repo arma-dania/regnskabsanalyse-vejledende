@@ -157,12 +157,12 @@ test("citaterne fra beretningen kan slås fra", () => {
   assert.ok(!a.faldgruber.some(f => f.tema === "beretning-ukritisk"));
 });
 
-test("en rettet værdi vinder over den indlæste", () => {
+test("gamle, gemte rettelser af udbyttet bruges ikke – kun det indlæste", () => {
   const { d, fund } = datasetMedUdbytte();
-  d.analyse = { udbytte: { foreslaaet: [null, null, 80000], betalt: [null, null, null] } };
+  d.analyse = { udbytte: { foreslaaet: [null, null, 80000], betalt: [null, 80000, null] } };
   const { kase } = fraDataset(d, fund);
-  assert.equal(kase.udbytte[2].foreslaaet, 80000);
-  assert.equal(kase.udbytte[2].betalt, 3000);
+  assert.equal(kase.udbytte[2].foreslaaet, 8000);
+  assert.equal(kase.udbytte[1].betalt, null);
 });
 
 test("beretningen citeres ved det nøgletal, den handler om, og dens tal må bruges", () => {

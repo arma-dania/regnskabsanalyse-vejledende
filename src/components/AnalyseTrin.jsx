@@ -122,30 +122,21 @@ function Maalestokke ({ dataset, setDataset, analyse }) {
   )
 }
 
-/* ====================== Ledelsesberetning og udbytte ====================== */
+/* ====================== Ledelsesberetning ====================== */
 
 function Beretning ({ dataset, setDataset, analyse, indlaest }) {
   const a = { ...tomAnalyse(), ...(dataset.analyse || {}) }
   const saet = aendring => setDataset(d => ({ ...d, analyse: { ...tomAnalyse(), ...(d.analyse || {}), ...aendring } }))
   const [aaben, setAaben] = useState(false)
-  const udb = a.udbytte || tomAnalyse().udbytte
-  const saetUdbytte = (art, i, x) => {
-    const t = Number(String(x).replace(/\./g, '').replace(',', '.'))
-    const liste = [...(udb[art] || [null, null, null])]
-    liste[i] = x === '' || !Number.isFinite(t) ? null : t
-    saet({ udbytte: { ...udb, [art]: liste } })
-  }
-  const vis = x => (x == null ? '' : new Intl.NumberFormat('da-DK', { maximumFractionDigits: 1 }).format(x))
   const tekst = analyse.beretning || ''
   return (
     <div className="kort">
       <div className="kort-top">
-        <h3>Ledelsesberetning og udbytte</h3>
+        <h3>Ledelsesberetning</h3>
         <button className="knap lys lille" onClick={() => setAaben(!aaben)}>{aaben ? 'Skjul' : 'Vis og ret'}</button>
       </div>
       <p className="hjaelp">
         {tekst ? `Ledelsesberetningen er indlæst (${tekst.length.toLocaleString('da-DK')} tegn).` : 'Der blev ikke fundet en ledelsesberetning i det indlæste regnskab. Indsæt den selv under "Vis og ret".'}
-        {' '}Udbytte for året: {analyse.aar.map((y, i) => `${y} ${analyse.udbytte[i]?.foreslaaet == null ? '–' : vis(analyse.udbytte[i].foreslaaet)}`).join(', ')} ({dataset.enhed}).
       </p>
       <label className="afkryds">
         <input type="checkbox" checked={a.brugCitater !== false} onChange={e => saet({ brugCitater: e.target.checked })} disabled={!tekst} />
@@ -154,28 +145,7 @@ function Beretning ({ dataset, setDataset, analyse, indlaest }) {
       </label>
       {aaben && (
         <>
-          <label className="felt">Udbytte i {dataset.enhed} – rettes kun, hvis importen ikke fandt det rigtige tal</label>
-          <table className="data smal">
-            <thead><tr><th /> {analyse.aar.map(y => <th key={y} className="num">{y}</th>)}</tr></thead>
-            <tbody>
-              {[['foreslaaet', 'Foreslået udbytte for året'], ['betalt', 'Betalt udbytte i året']].map(([art, navn]) => (
-                <tr key={art}>
-                  <td>{navn}</td>
-                  {analyse.aar.map((y, i) => (
-                    <td key={y} className="num">
-                      <input
-                        type="text" inputMode="decimal" size={9}
-                        placeholder={vis(indlaest?.udbytte?.[i]?.[art])}
-                        defaultValue={vis(udb[art]?.[i])}
-                        onBlur={e => saetUdbytte(art, i, e.target.value)}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <label className="felt" style={{ marginTop: 16 }}>Ledelsesberetningen</label>
+          <label className="felt">Ledelsesberetningen</label>
           <textarea
             rows={10} key={a.beretning == null ? 'indlaest' : 'rettet'}
             defaultValue={tekst} onBlur={e => saet({ beretning: e.target.value === (indlaest?.beretning || '') ? null : e.target.value })}

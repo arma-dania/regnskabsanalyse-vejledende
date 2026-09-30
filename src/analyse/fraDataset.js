@@ -13,8 +13,6 @@ const primoNavn = label => (/^\d{4}$/.test(label) ? String(Number(label) - 1) : 
 /** Standardværdier for analysens indstillinger, som gemmes i dataset.analyse. */
 export const tomAnalyse = () => ({
   markedsrente: [null, null, null], profil: "", forretningsmodel: "",
-  // Rettelser til det, importen fandt. null = brug det indlæste.
-  udbytte: { foreslaaet: [null, null, null], betalt: [null, null, null] },
   beretning: null,
   // Citater fra ledelsesberetningen i analysen – kan slås fra, når
   // beretningen ikke siger noget brugbart om tallene.
@@ -55,11 +53,8 @@ export function fraDataset(dataset, fund = []) {
   const a = { ...tomAnalyse(), ...(dataset.analyse || {}) };
   const aar = vist.aar.map((y, i) => y.label || `År ${i + 1}`);
   const indlaest = fraFund(fund, aar, dataset.enhed || "");
-  const ret = a.udbytte || tomAnalyse().udbytte;
-  const udbytte = indlaest.udbytte.map((u, i) => ({
-    foreslaaet: ret.foreslaaet?.[i] ?? u.foreslaaet,
-    betalt: ret.betalt?.[i] ?? u.betalt,
-  }));
+  // Udbyttet er det, importen fandt i regnskaberne.
+  const udbytte = indlaest.udbytte.map(u => ({ foreslaaet: u.foreslaaet, betalt: u.betalt }));
   const kase = {
     navn: dataset.virksomhed || "Virksomheden",
     enhed: kortEnhed(dataset.enhed || ""),

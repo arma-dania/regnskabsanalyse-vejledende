@@ -47,7 +47,7 @@ export function beretningFraBegreber (afsnit) {
 
 // Udgaven af udbyttelæsningen. Regnskaber, der er indlæst med en ældre
 // udgave, har måske et forkert udbytte gemt; det bruges ikke.
-export const UDBYTTE_UDGAVE = 2
+export const UDBYTTE_UDGAVE = 3
 
 // Begreber med "Dividend" i navnet, der ikke er udbytte fra virksomheden
 // (fx modtaget udbytte fra datterselskaber) eller udbytte pr. aktie.
@@ -103,9 +103,12 @@ export function udbytteFraFakta (fakta) {
 // Linjer i resultatdisponering, egenkapitalopgørelse, pengestrømsopgørelse
 // og noter. "Udbytte" alene står typisk i resultatdisponeringen og er årets
 // foreslåede udbytte; det bruges kun, hvis intet mere præcist er fundet.
+// "Ekstraordinært udbytte" alene siger ikke, om det er foreslået eller betalt,
+// og bruges derfor ikke. Udbytte besluttet efter årets udgang hører til året.
 const UDBYTTELINJE = [
+  [/(efter (balancedagen|regnskabsårets (afslutning|udløb)|periodens udløb|årets udgang))/i, 'foreslaaet'],
   [/^(foreslået (ordinært |ekstraordinært )?udbytte|udbytte for (regnskabs)?året|forslag til udbytte|foreslås udbetalt)/i, 'foreslaaet'],
-  [/^(betalt udbytte|udbetalt udbytte|udloddet udbytte|ekstraordinært udbytte|udbytte(,)? (betalt|udbetalt|udloddet))/i, 'betalt'],
+  [/^((betalt|udbetalt|udloddet) (ordinært |ekstraordinært )?udbytte|(ordinært |ekstraordinært )?udbytte(,)? (betalt|udbetalt|udloddet)(?! efter))/i, 'betalt'],
   [/^udbytte$/i, 'foreslaaet', true]
 ]
 const IKKE_UDBYTTELINJE = /pr\.?\s*aktie|per share|modtaget|fra (datter|tilknyttede|associerede|kapitalinteresser)/i

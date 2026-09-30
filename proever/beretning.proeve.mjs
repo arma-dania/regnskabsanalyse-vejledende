@@ -193,3 +193,22 @@ test("soliditetskæden tæller kun udbytte betalt i perioden", () => {
   const led = a.pointer.kaeder.find(k => k.id === "soliditet").led.find(l => /Udbytte/.test(l.navn));
   assert.equal(led.til, "80.000 t.kr.");
 });
+
+test("en note med 'Ekstraordinært udbytte' gør ikke et foreslået udbytte til betalt (Gasa 2024)", () => {
+  const html = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:ix="http://www.xbrl.org/2013/inlineXBRL" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:fsa="http://xbrl.dcca.dk/fsa">
+<head><title>Gasa - Årsrapport for 2024</title></head><body>
+<ix:header><ix:resources>
+<xbrli:context id="d1"><xbrli:entity><xbrli:identifier scheme="x">1</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2024-01-01</xbrli:startDate><xbrli:endDate>2024-12-31</xbrli:endDate></xbrli:period></xbrli:context>
+<xbrli:unit id="DKK"><xbrli:measure>iso4217:DKK</xbrli:measure></xbrli:unit>
+</ix:resources></ix:header>
+<h1>Resultatopgørelse</h1>
+<table><tr><td>Nettoomsætning</td><td><ix:nonFraction name="fsa:Revenue" contextRef="d1" unitRef="DKK" scale="3" decimals="-3">1.151.200</ix:nonFraction></td></tr></table>
+<h1>Noter</h1>
+<table><tr><td>Ekstraordinært udbytte</td><td><ix:nonFraction name="fsa:ExtraordinaryDividendDistributedAfterEndOfReportingPeriodGross" contextRef="d1" unitRef="DKK" scale="3" decimals="-3">80.000</ix:nonFraction></td></tr>
+<tr><td>Ekstraordinært udbytte</td><td><ix:nonFraction name="fsa:SomeOtherConcept" contextRef="d1" unitRef="DKK" scale="3" decimals="-3">80.000</ix:nonFraction></td></tr></table>
+</body></html>`;
+  const r = parseXbrlDokument(html, "gasa2024.xhtml", DOMParser);
+  assert.equal(r.udbytte["2024"].foreslaaet, 80e6);
+  assert.equal(r.udbytte["2024"].betalt, undefined);
+});

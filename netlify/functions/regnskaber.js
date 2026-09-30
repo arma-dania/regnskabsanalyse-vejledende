@@ -46,11 +46,17 @@ export default async (request) => {
       .filter(s => s.offentliggoerelsestype === 'regnskab')
       .map(s => {
         const periode = s.regnskab?.regnskabsperiode || {}
-        const dok = (s.dokumenter || []).map(d => ({
+        const alleDok = (s.dokumenter || []).map(d => ({
           url: d.dokumentUrl,
           type: d.dokumentType,
           mime: d.dokumentMimeType
         }))
+        // Et datterselskab uden eget koncernregnskab skal offentliggøre
+        // moderselskabets (ÅRL § 112). Virk viser det som "Koncernregnskab
+        // for overliggende moder" – før eller efter årsrapporten, alt efter
+        // året. Det er et andet selskabs tal og skal ikke indlæses.
+        const erModer = d => /moder|overliggende|parent/i.test(d.type || '')
+        const dok = alleDok.filter(d => !erModer(d))
         const varighedDage = periode.startDato && periode.slutDato
           ? Math.round((new Date(periode.slutDato) - new Date(periode.startDato)) / 86400000)
           : null
@@ -70,7 +76,8 @@ export default async (request) => {
           xbrl: xbrlDok[0]?.url || null,
           xbrlAlle: xbrlDok.map(d => d.url),
           pdf: dok.find(d => /pdf/i.test(d.mime || ''))?.url || null,
-          dokumenter: dok
+          dokumenter: dok,
+          udeladt: alleDok.filter(erModer)
         }
       })
       // Kvartals- og halvårsregnskaber (kort regnskabsperiode) udelukkes —

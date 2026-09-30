@@ -10,13 +10,10 @@ const FORLOEB = [
   ['85–90', 'Opsamling: hvilke faldgruber ramte vi, og hvilket trin var sværest?']
 ]
 
-// Kædens led er alle bedre, når de stiger.
-const farve = b => (b === 'forbedret' ? 'op' : b === 'forringet' ? 'ned' : '')
-
 /** Trin 5: underviservejledningen – pointer og sammenhænge område for område. */
 export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) {
   const k = a.konklusion
-  const kaede = a.pointer?.kaede || []
+  const kaeder = a.pointer?.kaeder || []
   const samlet = (prosa.konklusion?.samlet || k.samlet.join('\n') || k.udkast[0] || '').split(/\n+/).filter(x => x.trim())
   return (
     <>
@@ -33,20 +30,27 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
 
       <section className="kort">
         <h3>Det store billede</h3>
-        {kaede.length > 0 && (
+        {kaeder.length > 0 && (
           <>
-            <p className="hjaelp" style={{ marginTop: 0 }}><strong>Sammenhængskæden:</strong> AG = OG × AOH → EKF (gearing) → soliditet → likviditet. Følg kæden, og spørg ved hvert led: hvorfor?</p>
-            <div className="kaede">
-              {kaede.map((x, i) => (
-                <div key={x.nr} className="kaede-led-holder">
-                  {i > 0 && <span className="kaede-pil">{x.nr === 3 ? '×' : '→'}</span>}
-                  <div className={'kaede-led ' + farve(x.bevaegelse)}>
-                    <span className="kaede-navn">{x.navn}</span>
-                    <span className="kaede-tal">{x.fra} {x.pil} {x.til}</span>
-                  </div>
+            <p className="hjaelp" style={{ marginTop: 0 }}><strong>Sådan hænger det sammen:</strong> {a.pointer.bindeled}</p>
+            {kaeder.map(kd => (
+              <div key={kd.id} className="kaede-blok">
+                <h4>{kd.titel}</h4>
+                <div className="kaede">
+                  {kd.led.map((x, i) => (
+                    <div key={i} className="kaede-led-holder">
+                      {i > 0 && !/^[×=]/.test(x.navn) && <span className="kaede-pil">→</span>}
+                      <div className={'kaede-led ' + x.farve}>
+                        <span className="kaede-navn">{x.navn}</span>
+                        <span className="kaede-tal">{x.fra} {x.pil} {x.til}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+                <ul className="kaede-forklaring">{kd.forbindelser.map((f, i) => <li key={i}>{f}</li>)}</ul>
+              </div>
+            ))}
+            <h4>Den samlede konklusion</h4>
           </>
         )}
         {samlet.map((x, i) => <p key={i}>{x}</p>)}

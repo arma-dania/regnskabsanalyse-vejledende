@@ -103,21 +103,24 @@ export function besvarelseBoern(a, prosa = {}) {
 /** Underviservejledningens indhold – også brugt i det samlede Word-dokument. */
 export function vejledningBoern(a, prosa = {}) {
   const k = a.konklusion;
-  const kaede = a.pointer?.kaede || [];
+  const kaeder = a.pointer?.kaeder || [];
   const dele = [
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(`Underviservejledning – ${a.navn}`)] }),
     p("De vigtigste pointer og sammenhænge til gennemgangen med holdet. Den fulde trappe står i den vejledende besvarelse.", { run: { italics: true } }),
     ...forudsaetninger(a),
 
     h("Det store billede", HeadingLevel.HEADING_1),
-    ...(prosa.konklusion?.samlet || k.samlet.join("\n") || k.udkast[0]).split(/\n+/).filter(x => x.trim()).map(x => p(x.trim())),
   ];
-  if (kaede.length) {
-    dele.push(h("Sammenhængskæden", HeadingLevel.HEADING_2),
-      p("AG = OG × AOH → EKF (gearing) → soliditet → likviditet. Følg kæden, og spørg ved hvert led: hvorfor?", { run: { italics: true } }),
-      tabel(["Led", a.aar[0], a.aar[2], "Retning"], kaede.map(x => [x.navn, x.fra, x.til, `${x.pil} ${x.bevaegelse}`]), [46, 18, 18, 18]),
-      luft());
+  if (kaeder.length) {
+    dele.push(h("Sådan hænger det sammen", HeadingLevel.HEADING_2), p(a.pointer.bindeled, { run: { italics: true } }));
+    for (const kd of kaeder) {
+      dele.push(h(kd.titel, HeadingLevel.HEADING_3),
+        tabel(["Led", a.aar[0], a.aar[2], "Retning"], kd.led.map(x => [x.navn, x.fra, x.til, x.pil]), [52, 18, 18, 12]),
+        ...kd.forbindelser.map(punkt), luft());
+    }
   }
+  dele.push(h("Den samlede konklusion", HeadingLevel.HEADING_2),
+    ...(prosa.konklusion?.samlet || k.samlet.join("\n") || k.udkast[0]).split(/\n+/).filter(x => x.trim()).map(x => p(x.trim())));
   if (k.styrker.length) dele.push(fed("Styrker: ", ""), ...k.styrker.map(punkt));
   if (k.svagheder.length) dele.push(fed("Svagheder: ", ""), ...k.svagheder.map(punkt));
 

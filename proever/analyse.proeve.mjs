@@ -192,3 +192,15 @@ test("tabellerne viser ændring i % som nøgletalsappen", () => {
   const pct = procentvisAendring(deres, 1);
   assert.equal(r.pct, (pct > 0 ? "+" : "−") + new Intl.NumberFormat("da-DK", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(pct)) + " %");
 });
+
+test("underviservejledningens kæder: rentabilitet, soliditet og likviditet med forklarede forbindelser", () => {
+  const a = analyser(EKSEMPEL);
+  const ids = a.pointer.kaeder.map(k => k.id);
+  assert.deepEqual(ids, ["rentabilitet", "soliditet", "likviditet"]);
+  const [ren, sol, lik] = a.pointer.kaeder;
+  assert.match(ren.forbindelser.join(" "), /OG × AOH = AG/);
+  assert.match(ren.forbindelser.join(" "), /AG → EKF/);
+  assert.match(sol.forbindelser.join(" "), /Egenkapital → soliditet: soliditetsgraden er egenkapitalen i procent af aktiverne/);
+  assert.match(lik.forbindelser.join(" "), /Arbejdskapital → pengestrøm/);
+  assert.match(a.pointer.bindeled, /årets resultat/);
+});

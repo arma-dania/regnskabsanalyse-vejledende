@@ -42,6 +42,7 @@ function forudsaetninger(a) {
   return [
     fed("Analyseår: ", `${a.aar.join(", ")} (tal i ${a.enhed || "kr."}).`),
     fed("Markedsrente: ", `${MARKEDSRENTE_NAVN}: ${a.aar.map((y, i) => `${y} ${fmtPct(a.rente[i])}`).join(", ")}.`),
+    ...(a.udbytte?.some(u => u?.foreslaaet != null) ? [fed("Udbytte for året: ", a.aar.map((y, i) => `${y} ${a.udbytte[i]?.foreslaaet == null ? "–" : new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 }).format(a.udbytte[i].foreslaaet)}`).join(", ") + ` (${a.enhed}).`)] : []),
     fed("Forretningsmodel: ", [a.profil ? `typisk profil: ${a.profil.navn.toLowerCase()}.` : "", a.forretningsmodel].filter(Boolean).join(" ") || "Ikke angivet."),
     ...(a.skoen ? [p("Obs: Primobalancen mangler, så gennemsnitstallene for det første år er regnet på ultimotal og er et skøn.", { run: { italics: true } })] : []),
   ];
@@ -74,6 +75,7 @@ export function besvarelseDok(a, prosa = {}) {
       for (const t of TRIN.slice(0, 3)) {
         const tekst = trinTekst(prosa, g, t.nr);
         if (tekst.trim()) dele.push(fed(`Trin ${t.nr} – ${t.navn}: `, tekst.replace(/\n+/g, " ")));
+        if (t.nr === 2 && g.beretning?.length) dele.push(citat(g.beretning));
       }
     }
   }
@@ -121,6 +123,7 @@ export function vejledningDok(a, prosa = {}) {
       dele.push(h(g.titel, HeadingLevel.HEADING_2));
       if (g.noegle.length) dele.push(fed("Det skal de finde (trin 1): ", ""), ...g.noegle.map(punkt));
       if (g.trin2.length) dele.push(fed("Forklaringen (trin 2): ", ""), ...g.trin2.map(punkt));
+      if (g.beretning?.length) dele.push(citat(g.beretning));
       if (g.trin3.length) dele.push(fed("Målestokkene (trin 3): ", ""), ...g.trin3.map(punkt));
       const fg = a.faldgruber.filter(f => f.gruppe === g.id);
       if (fg.length) dele.push(fed("Faldgruber at tage fat i: ", ""), ...fg.flatMap(faldgrubeAfsnit));
@@ -138,9 +141,23 @@ export function vejledningDok(a, prosa = {}) {
     punkt("Hvis I var ledelsen: hvad er det første, I ville gøre, og hvilket nøgletal skal vise, at det virker?"));
   for (const f of a.faldgruber.filter(f => f.omraade === "konklusion")) dele.push(...faldgrubeAfsnit(f));
 
+  if (a.beretning) {
+    dele.push(h("Bilag: Ledelsesberetningen", HeadingLevel.HEADING_1),
+      p("Som indlæst fra årsrapporten. Brug den til at holde ledelsens forklaringer op mod nøgletallene.", { run: { italics: true } }));
+    for (const afsnit of a.beretning.split(/\n+/)) if (afsnit.trim()) dele.push(p(afsnit.trim(), { run: { size: 20 } }));
+  }
+
   dele.push(h("Tjekliste: hvornår er et trin nået?", HeadingLevel.HEADING_1),
     tabel(["Trin", "Kravet"], TRIN.map(t => [`${t.nr} ${t.navn}`, t.krav]), [25, 75]));
   return dok(dele);
+}
+
+/** Ledelsens egne ord – til at holde op mod tallene. */
+function citat(saetninger) {
+  return new Paragraph({
+    spacing: { after: 120 }, indent: { left: 360 },
+    children: [new TextRun({ text: "Ledelsesberetningen: ", bold: true, color: "9A6A16" }), new TextRun({ text: saetninger.map(x => `»${x}«`).join(" "), italics: true })],
+  });
 }
 
 function faldgrubeAfsnit(f) {

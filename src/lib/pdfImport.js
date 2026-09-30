@@ -1,5 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import { FIELD_MAP } from './model.js'
+import { udtraekBeretning, udbytteFraLinjer } from './beretning.js'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
@@ -126,6 +127,8 @@ export async function importerPdf (file) {
   })
 
   const aarstal = gaetAarstal(helTekst.slice(0, 4000))
+  const beretning = udtraekBeretning(alleLinjer)
+  const udbytte = udbytteFraLinjer(alleLinjer, aarstal.map(String), parseDanskTal)
   const navn = (alleLinjer.find(l => /(A\/S|ApS|I\/S|K\/S|IVS)\s*$/.test(l)) || '').trim()
   const cvrCifre = (helTekst.match(/CVR[\s.-]*(?:nr|nummer)?[\s.:-]*((?:\d\s?){8})/i)?.[1] || '').replace(/\s/g, '')
 
@@ -134,6 +137,8 @@ export async function importerPdf (file) {
     virksomhed: navn,
     cvr: cvrCifre.length === 8 ? cvrCifre : null,
     enhed: gaetEnhed(helTekst),
+    beretning,
+    udbytte,
     poster,
     kolonner: [
       { navn: aarstal[0] ? String(aarstal[0]) : 'Regnskabsår', values: kolonner[0] },

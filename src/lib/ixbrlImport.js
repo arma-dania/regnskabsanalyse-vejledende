@@ -1,3 +1,5 @@
+import { udtraekBeretning, beretningFraBegreber, udbytteFraFakta } from './beretning.js'
+
 // Regnskabet indlæses, som det står: hver post i resultatopgørelse, balance
 // og pengestrømsopgørelse bliver sin egen række med regnskabets eget navn,
 // i regnskabets egen rækkefølge. Intet lægges sammen eller placeres i
@@ -365,6 +367,26 @@ export function parseXbrlDokument (tekst, kilde = '', ParserClass = globalThis.D
   const cvrCifre = (findStamdata(doc, 'identificationnumbercvrofreportingentity') || '').replace(/\D/g, '')
   const cvr = cvrCifre.length === 8 ? cvrCifre : (titel.trim().match(/^(\d{8})\s/)?.[1] || null)
 
+  // Ledelsesberetningen: afsnittet under overskriften, eller de mærkede
+  // tekstafsnit, hvis beretningen ikke har sin egen overskrift.
+  const tekstlinjer = alle
+    .map(el => rensTekst([...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' ')))
+    .filter(t => t.length > 1)
+  const tekstafsnit = alle
+    .filter(el => localName(el) === 'nonnumeric')
+    .map(el => ({ begreb: (el.getAttribute('name') || '').split(':').pop(), tekst: rensTekst(tekstMedFortsaettelse(doc, el)) }))
+  const beretning = udtraekBeretning(tekstlinjer) || beretningFraBegreber(tekstafsnit)
+
+  // Udbytte læses uanset opgørelse – det står typisk i egenkapitalen, i
+  // resultatdisponeringen eller i pengestrømsopgørelsen.
+  const foer = { ...diagnostik }
+  const udbytteFakta = alle
+    .filter(el => /dividend/i.test(el.getAttribute('name') || el.nodeName))
+    .map(laesFakta)
+    .filter(Boolean)
+  Object.assign(diagnostik, foer)
+  const udbytte = udbytteFraFakta(udbytteFakta)
+
   diagnostik.antalUnikkeIkkeGenkendte = ikkeGenkendteNavne.size
   diagnostik.ikkeGenkendteNavne = [...ikkeGenkendteNavne.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -378,6 +400,8 @@ export function parseXbrlDokument (tekst, kilde = '', ParserClass = globalThis.D
     enhed: 'kr.',
     visEnhed,
     diagnostik,
+    beretning,
+    udbytte,
     poster,
     kolonner: kolonner.filter(k => Object.keys(k.values).length > 0)
   }

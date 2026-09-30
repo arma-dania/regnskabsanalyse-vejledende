@@ -70,6 +70,39 @@ Claudes tekst tjekkes mod analysen (`src/analyse/tjek.js`), og ukendte tal
 markeres med gult. Ændres tallene bagefter, bruges prosaen ikke, før den er
 skrevet igen. Uden Claude bruger Word-dokumenterne motorens egne sætninger.
 
+## Ledelsesberetning og udbytte
+
+Når regnskaberne indlæses (CVR-opslag, iXBRL eller PDF), læses også
+**ledelsesberetningen** og **udbyttet** (`src/lib/beretning.js`):
+
+- **Ledelsesberetningen** er afsnittet under overskriften "Ledelsesberetning"
+  frem til næste hovedafsnit (resultatopgørelse, anvendt regnskabspraksis
+  m.m.). Har beretningen ingen overskrift, bruges de XBRL-mærkede tekstafsnit
+  (fx "Udviklingen i aktiviteter og økonomiske forhold"). Beretningen fra det
+  nyeste regnskab bruges.
+- **Udbyttet** læses fra XBRL-begreberne for foreslået udbytte (fx
+  `ProposedDividendRecognisedInEquity`) og betalt udbytte (fx `DividendsPaid`),
+  både i den danske taksonomi og i IFRS – og fra PDF-linjer som "Foreslået
+  udbytte" og "Betalt udbytte".
+
+I trin 4 kan begge ses og rettes under *Ledelsesberetning og udbytte* –
+fx hvis importen ikke fandt udbyttet, eller beretningen skal indsættes i
+hånden. Rettelserne gemmes sammen med regnskabet.
+
+Sådan bruges de i analysen:
+
+- **Udbyttet** indgår i soliditetsgradens trin 2 (udbyttet i procent af årets
+  resultat, og hvorfor egenkapitalen ikke vokser med hele overskuddet) og
+  trin 3 (soliditetsgraden efter udbetaling af det foreslåede udbytte), i
+  pengestrømmens trin 2 (betalt udbytte mod pengestrømmen fra driften) og i
+  konklusionen (udbytte større end resultatet, eller et udbytte, der bør
+  sænkes).
+- **Ledelsesberetningen** citeres ved det nøgletal, sætningen handler om, så
+  ledelsens forklaring kan holdes op mod tallene. Claude får beretningen med
+  og må bruge den i trin 2 – som ledelsens forklaring, ikke som facit. Tal fra
+  beretningen godkendes i taltjekket. Underviservejledningen har en faldgrube
+  om at tage ledelsens forklaring for pålydende, og beretningen som bilag.
+
 ## Faglige valg, du bør kende
 
 - **Nøgletallene** er nøgletalsappens egne (`src/lib/nogletal.js`). Analysen
@@ -257,7 +290,8 @@ src/lib/ixbrlImport.js  Mapping fra fsa- og ifrs-full-taksonomien til analysefor
 src/lib/exportExcel.js  Fire ark: analyseform, nøgletal, beregningsgrundlag, definitioner
 src/lib/exportWord.js   Rapport med tabeller, grafer og kommentarfelter
 src/lib/omformning.js   Forslag til sammenlægning af poster i analyseformen
-src/analyse/fraDataset.js  Broen fra nøgletallene i trin 3 til analysen
+src/analyse/fraDataset.js  Broen fra nøgletallene i trin 3 til analysen (plus beretning og udbytte)
+src/lib/beretning.js       Ledelsesberetning og udbytte fra det indlæste regnskab
 src/analyse/analyse.js     Analysemotoren: trappen pr. nøgletal og gruppe, faldgruber, trin 4-udkast
 src/analyse/grupper.js     Hvilke nøgletal der skrives op ad trappen sammen
 src/analyse/beregning.js   Mellemregninger og formatering

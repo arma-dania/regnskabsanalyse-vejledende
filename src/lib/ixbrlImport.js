@@ -220,13 +220,18 @@ function navnFraTitel (raaTitel) {
 function opgoerelseFraOverskrift (tekst, nu) {
   const t = tekst.toLowerCase()
   if (/^resultatopgørelse(\s|$)/.test(t) || /^income statement(\s|$)/.test(t)) return 'resultat'
+  if (/^balance sheet(\s|$)/.test(t)) return 'aktiver'
   if (/^balance(\s|$)/.test(t) && (nu === 'resultat' || /\d/.test(t))) return 'aktiver'
-  if (/^aktiver$/.test(t) && (nu === 'aktiver' || nu === 'passiver')) return 'aktiver'
-  if (/^(passiver|egenkapital og forpligtelser)$/.test(t) && (nu === 'aktiver' || nu === 'passiver')) return 'passiver'
-  if (/^pengestrømsopgørelse(\s|$)/.test(t)) return 'pengestroem'
-  if (/^(egenkapitalopgørelse|noter(\s|$)|anvendt regnskabspraksis|hoved- og nøgletal|hovedtal|ledelsesberetning|ledelsespåtegning|påtegninger|den uafhængige revisors|oplysninger om|selskabsoplysninger|indholdsfortegnelse)/.test(t)) return null
+  if (/^(aktiver|assets)$/.test(t) && (nu === 'aktiver' || nu === 'passiver')) return 'aktiver'
+  if (/^(passiver|egenkapital og forpligtelser|equity and liabilities|liabilities and equity)$/.test(t) && (nu === 'aktiver' || nu === 'passiver')) return 'passiver'
+  if (/^(pengestrømsopgørelse|cash flow statement|statement of cash flows)(\s|$)/.test(t)) return 'pengestroem'
+  if (/^(egenkapitalopgørelse|noter(\s|$)|anvendt regnskabspraksis|hoved- og nøgletal|hovedtal|ledelsesberetning|ledelsespåtegning|påtegninger|den uafhængige revisors|oplysninger om|selskabsoplysninger|indholdsfortegnelse|resultatdisponering|forslag til resultatdisponering)/.test(t)) return null
+  // Engelsksprogede årsrapporter.
+  if (/^(statement of changes in equity|notes(\s|$)|accounting policies|financial highlights|key figures|management'?s? (review|report|statement)|statement by (the )?management|independent auditor|company (details|information)|contents$|table of contents|proposed (distribution|appropriation))/.test(t)) return null
   return undefined
 }
+
+const SLUTPOST_PASSIVER = new Set(['LiabilitiesAndEquity', 'EquityAndLiabilities'])
 
 const gruppe = s => (s === 'aktiver' || s === 'passiver' ? 'balance' : s)
 
@@ -303,6 +308,11 @@ export function parseXbrlDokument (tekst, kilde = '', ParserClass = globalThis.D
         if (nu === 'aktiver' && aktiverIAltSet && f.begreb !== 'Assets') nu = 'passiver'
         if (nu === 'aktiver' && f.begreb === 'Assets') aktiverIAltSet = true
         fund.push({ ...f, sektion: nu, label: raekkenavn(el) })
+        // Opgørelsen slutter med sin sumpost. Det, der kommer efter (fx
+        // resultatdisponering, egenkapitalopgørelse eller noter uden en
+        // genkendt overskrift), hører ikke til opgørelsen.
+        if (nu === 'resultat' && f.begreb === 'ProfitLoss') faerdige.add('resultat')
+        if (nu === 'passiver' && SLUTPOST_PASSIVER.has(f.begreb)) faerdige.add('balance')
         continue
       }
       const egenTekst = rensTekst([...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' '))

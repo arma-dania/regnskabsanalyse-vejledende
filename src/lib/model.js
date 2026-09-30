@@ -121,7 +121,10 @@ const ROLLER = {
   // resultatopgørelse er kapacitetsomkostninger.
   andreEksterne: ['OtherExternalExpenses', 'ExternalExpenses', 'DistributionCosts', 'AdministrativeExpenses', 'AdministrativeExpense'],
   afskrivninger: ['DepreciationAmortisationExpenseAndImpairmentLossesOfPropertyPlantAndEquipmentAndIntangibleAssetsRecognisedInProfitOrLoss', 'DepreciationAmortisationExpense', 'DepreciationAndAmortisation'],
-  finansielleIndtaegter: ['OtherFinanceIncome', 'FinanceIncome', 'FinancialIncome'],
+  // Indtægter af kapitalandele (datterselskaber og associerede) står under
+  // de finansielle poster i analyseformen – ellers falder de ud af årets
+  // resultat, og egenkapitalens forrentning bliver for lav.
+  finansielleIndtaegter: ['OtherFinanceIncome', 'FinanceIncome', 'FinancialIncome', 'IncomeFromInvestmentsInGroupEnterprises', 'IncomeFromInvestmentsInAssociates', 'ShareOfProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod'],
   finansielleOmkostninger: ['OtherFinanceExpenses', 'FinanceCosts', 'FinancialExpenses'],
   skat: ['TaxExpenseOnOrdinaryActivities', 'TaxExpense', 'IncomeTaxExpenseContinuingOperations', 'IncomeTaxExpense'],
   immaterielleAnlaeg: ['IntangibleAssets'],
@@ -242,10 +245,27 @@ export function beregnAnalyse (dataset) {
     })
     return values
   }
-  kopi.aar.forEach(y => { y.values = beregn(y.poster) })
+  kopi.aar.forEach(y => {
+    y.values = beregn(y.poster)
+    // Regnskabets egne resultattal til kontrol af omformningen (se validate).
+    const r = beregnRapporteret(kopi, y.poster, synlige, map)
+    if (Object.keys(r).length) y.rapporteret = r; else delete y.rapporteret
+  })
   const primo = beregn(kopi.primoPoster)
   kopi.primo = Object.fromEntries(PRIMO_FIELDS.filter(k => primo[k] != null).map(k => [k, primo[k]]))
   return kopi
+}
+
+// Regnskabets egne summer for årets resultat og resultat før skat.
+function beregnRapporteret (dataset, tal, synlige, map) {
+  const ud = {}
+  synlige.forEach(p => {
+    const r = rolle(dataset, p, map)
+    if (r !== 'aaretsResultat' && r !== 'resultatFoerSkat') return
+    const v = postTal(dataset, p, tal, map)
+    if (v != null && ud[r] == null) ud[r] = v
+  })
+  return ud
 }
 
 /** Trækker kilden ind på målet: tallene lægges sammen, og målet får det nye navn. */
@@ -426,6 +446,15 @@ export function validate (dataset) {
     const near = (a, b) => Math.abs(a - b) <= Math.max(1, Math.abs(a) * 0.005)
     if (v.aktiverIAlt != null && v.passiverIAlt != null && !near(v.aktiverIAlt, v.passiverIAlt)) {
       raa.push({ level: 'error', year: label, text: `Balancen stemmer ikke: aktiver ${fmt(v.aktiverIAlt)} mod passiver ${fmt(v.passiverIAlt)}.` })
+    }
+    // Analyseformens resultat skal give regnskabets eget. Gør det ikke, er en
+    // post i resultatopgørelsen uden plads i analyseformen – og så er
+    // egenkapitalens forrentning og resultat pr. aktie forkerte.
+    for (const [k, navn] of [['aaretsResultat', 'Årets resultat'], ['resultatFoerSkat', 'Resultat før skat']]) {
+      const rap = y.rapporteret?.[k]
+      if (rap == null || v[k] == null || near(rap, v[k])) continue
+      raa.push({ level: 'error', year: label, text: `${navn} er ${fmt(rap)} kr. i regnskabet, men ${fmt(v[k])} kr. i analyseformen. En post i resultatopgørelsen (fx andre driftsindtægter eller indtægter af kapitalandele) har ikke fået en plads i analyseformen, så nøgletallene bliver forkerte. Læg posten sammen med den post, den hører til.` })
+      break
     }
     if (v.kapacitetsomkostninger != null && v.kapacitetsomkostninger < 0) {
       raa.push({ level: 'warn', year: label, text: 'Kapacitetsomkostninger er negative. Kontrollér, at der ikke er placeret en indtægt blandt omkostningerne.' })

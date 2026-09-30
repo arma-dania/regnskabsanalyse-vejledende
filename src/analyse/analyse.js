@@ -510,8 +510,15 @@ const SKRIV = {
   /* ---------- Kapitaltilpasning og pengestrømme ---------- */
 
   anlaeg(ctx) {
+    // Er de immaterielle anlægsaktiver næsten nul, bliver deres
+    // omsætningshastighed et kæmpe tal uden analytisk værdi.
+    const v = ctx.V[2];
+    const smaa = v.immaterielleAnlaeg != null && v.aktiverIAlt ? v.immaterielleAnlaeg / v.aktiverIAlt < 0.01 : false;
+    const t1 = trin1(ctx, smaa ? [13, 15] : [13, 14, 15]);
+    if (smaa && ctx.sidst(14) != null)
+      t1.push(`De immaterielle anlægsaktiver er kun ${fmtBeloeb(v.immaterielleAnlaeg, ctx.enh)} (${fmtPct((v.immaterielleAnlaeg / v.aktiverIAlt) * 100)} af aktiverne) i ${ctx.aar[2]}. Deres omsætningshastighed (${formatNt(14, ctx.sidst(14), ctx.enh)}) har derfor ingen analytisk værdi og kommenteres ikke.`);
     return {
-      trin1: trin1(ctx, [13, 14, 15]),
+      trin1: t1,
       trin2: [
         saetning(postUdv(ctx, "omsaetning", "omsætningen"), postUdv(ctx, "anlaegsaktiver", "anlægsaktiverne")),
         saetning(postUdv(ctx, "materielleAnlaeg", "de materielle anlægsaktiver"), postUdv(ctx, "immaterielleAnlaeg", "de immaterielle anlægsaktiver")),

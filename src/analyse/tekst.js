@@ -33,8 +33,22 @@ export function vaesentlig(nr, a, b) {
 export const verbum = (a, b) => (b > a ? "steg" : "faldt");
 
 /**
+ * Den procentvise ændring fra første til sidste år med et tal – samme regnestykke
+ * som kolonnen "Ændring i %" i nøgletalsappen (src/lib/nogletal.js).
+ */
+export function aendringsprocent(serie) {
+  const tal = serie.filter(v => v != null && Number.isFinite(v));
+  if (tal.length < 2 || tal[0] === 0) return null;
+  return ((tal[tal.length - 1] - tal[0]) / Math.abs(tal[0])) * 100;
+}
+
+const fmt1 = x => new Intl.NumberFormat("da-DK", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(x));
+export const fmtAendringsprocent = p => (p == null ? null : `${p > 0 ? "+" : p < 0 ? "−" : "±"}${fmt1(p)} %`);
+
+/**
  * Konstaterer udviklingen i ét nøgletal over de tre år – uden årsag og uden
- * vurdering (trin 1). Returnerer null, hvis tallene mangler.
+ * vurdering (trin 1). Sætningen slutter med ændringsprocenten fra første til
+ * sidste år; for procentnøgletal også ændringen i procentpoint.
  */
 export function konstater(nr, serie, aar, enhedstekst = "") {
   const f = x => formatNt(nr, x, enhedstekst);
@@ -44,24 +58,29 @@ export function konstater(nr, serie, aar, enhedstekst = "") {
   if (idx.length === 1) return `${navn} var ${f(serie[idx[0]])} i ${aar[idx[0]]}.`;
   const [i0, iN] = [idx[0], idx[idx.length - 1]];
   const [a, c] = [serie[i0], serie[iN]];
-  const samlet = formatAendring(nr, a, c);
+  const pct = fmtAendringsprocent(aendringsprocent(serie));
+  const e = NT[nr]?.enhed;
+  const pp = e === "%" ? formatAendring(nr, a, c) : null;
+  const aendring = pct
+    ? ` (ændring ${aar[i0]}–${aar[iN]}: ${pct}${pp ? `, svarende til ${pp}` : ""})`
+    : pp ? ` (${pp})` : "";
 
   if (idx.length === 3) {
     const b = serie[1];
     const t1 = vaesentlig(nr, a, b) ? Math.sign(b - a) : 0;
     const t2 = vaesentlig(nr, b, c) ? Math.sign(c - b) : 0;
     if (!t1 && !t2 && !vaesentlig(nr, a, c))
-      return `${navn} lå stort set uændret: ${f(a)} i ${aar[0]}, ${f(b)} i ${aar[1]} og ${f(c)} i ${aar[2]}.`;
+      return `${navn} lå stort set uændret: ${f(a)} i ${aar[0]}, ${f(b)} i ${aar[1]} og ${f(c)} i ${aar[2]}${aendring}.`;
     if (t1 && t2 && t1 === t2)
-      return `${navn} ${verbum(a, c)} begge år, fra ${f(a)} i ${aar[0]} over ${f(b)} i ${aar[1]} til ${f(c)} i ${aar[2]} (${samlet} samlet).`;
+      return `${navn} ${verbum(a, c)} begge år, fra ${f(a)} i ${aar[0]} over ${f(b)} i ${aar[1]} til ${f(c)} i ${aar[2]}${aendring}.`;
     if (t1 && t2 && t1 !== t2)
-      return `${navn} ${verbum(a, b)} fra ${f(a)} i ${aar[0]} til ${f(b)} i ${aar[1]}, men ${verbum(b, c)} igen til ${f(c)} i ${aar[2]}.`;
+      return `${navn} ${verbum(a, b)} fra ${f(a)} i ${aar[0]} til ${f(b)} i ${aar[1]}, men ${verbum(b, c)} igen til ${f(c)} i ${aar[2]}${aendring}.`;
     if (t2)
-      return `${navn} lå stabilt i ${aar[0]} og ${aar[1]} (${f(a)} og ${f(b)}) og ${verbum(b, c)} derefter til ${f(c)} i ${aar[2]} (${formatAendring(nr, b, c)}).`;
-    return `${navn} ${verbum(a, b)} fra ${f(a)} i ${aar[0]} til ${f(b)} i ${aar[1]} og lå derefter stabilt (${f(c)} i ${aar[2]}).`;
+      return `${navn} lå stabilt i ${aar[0]} og ${aar[1]} (${f(a)} og ${f(b)}) og ${verbum(b, c)} derefter til ${f(c)} i ${aar[2]}${aendring}.`;
+    return `${navn} ${verbum(a, b)} fra ${f(a)} i ${aar[0]} til ${f(b)} i ${aar[1]} og lå derefter stabilt på ${f(c)} i ${aar[2]}${aendring}.`;
   }
-  if (!vaesentlig(nr, a, c)) return `${navn} lå stort set uændret: ${f(a)} i ${aar[i0]} og ${f(c)} i ${aar[iN]}.`;
-  return `${navn} ${verbum(a, c)} fra ${f(a)} i ${aar[i0]} til ${f(c)} i ${aar[iN]} (${samlet}).`;
+  if (!vaesentlig(nr, a, c)) return `${navn} lå stort set uændret: ${f(a)} i ${aar[i0]} og ${f(c)} i ${aar[iN]}${aendring}.`;
+  return `${navn} ${verbum(a, c)} fra ${f(a)} i ${aar[i0]} til ${f(c)} i ${aar[iN]}${aendring}.`;
 }
 
 export const dage = oms => (oms ? Math.round(365 / oms) : null);

@@ -9,7 +9,7 @@ import { analyser } from "../src/analyse/analyse.js";
 import { medAfledte, balanceKontrol } from "../src/analyse/poster.js";
 import { fraDataset } from "../src/analyse/fraDataset.js";
 import { emptyDataset } from "../src/lib/model.js";
-import { beregnAlle } from "../src/lib/nogletal.js";
+import { beregnAlle, procentvisAendring } from "../src/lib/nogletal.js";
 import { tjekTal } from "../src/analyse/tjek.js";
 
 const naer = (a, b, tol = 1e-9) => assert.ok(Math.abs(a - b) < tol, `${a} ≠ ${b}`);
@@ -133,4 +133,41 @@ test("motorens egen regning stemmer med nøgletalsappens", () => {
   for (let i = 0; i < 3; i++)
     for (const nr of [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24])
       naer(egne[i].n[nr], deres[i][nr].value, 1e-6);
+});
+
+test("OG og AOH står under rentabiliteten og undersøges nærmere i indtjeningsevnen og kapitaltilpasningen", () => {
+  const a = analyser(EKSEMPEL);
+  const ids = a.omraader.rentabilitet.grupper.map(g => g.id);
+  assert.deepEqual(ids.slice(0, 3), ["ag", "og", "aoh"]);
+  assert.ok(!a.omraader.indtjeningsevne.grupper.some(g => g.id === "og"));
+  assert.ok(!a.omraader.kapital.grupper.some(g => g.id === "aoh"));
+  assert.match(a.omraader.indtjeningsevne.indledning, /^Indtjeningsevnen undersøger nærmere overskudsgraden/);
+  assert.match(a.omraader.kapital.indledning, /^Kapitaltilpasningen undersøger nærmere aktivernes omsætningshastighed/);
+  assert.equal(a.omraader.rentabilitet.indledning, "");
+  // Forklaringerne i områderne føres tilbage til OG og AOH.
+  const tekst = id => a.omraader[id].grupper.flatMap(g => g.trin2).join(" ");
+  assert.match(tekst("indtjeningsevne"), /trækker overskudsgraden (op|ned)/);
+  assert.match(tekst("kapital"), /trækker aktivernes omsætningshastighed (op|ned)/);
+});
+
+test("konstateringen bruger nøgletalsappens ændringsprocent", () => {
+  const d = somDataset();
+  const { kase, noegletal } = fraDataset(d);
+  const a = analyser(kase, noegletal);
+  const deres = beregnAlle(d);
+  const pct = procentvisAendring(deres, 2);
+  const forventet = (pct > 0 ? "+" : "−") + new Intl.NumberFormat("da-DK", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(pct)) + " %";
+  const og = a.omraader.rentabilitet.grupper.find(g => g.id === "og");
+  assert.ok(og.trin1[0].includes(`ændring 2023–2025: ${forventet}`), og.trin1[0]);
+});
+
+test("kun én delkonklusion pr. analyseområde", () => {
+  const a = analyser(EKSEMPEL);
+  for (const [id, o] of Object.entries(a.omraader)) {
+    for (const g of o.grupper) assert.equal(g.delkonklusion, undefined, g.id);
+    if (!o.ikkeRelevant) assert.ok(o.delkonklusion.length > 40, id);
+  }
+  assert.match(a.omraader.rentabilitet.delkonklusion, /forringet.*overskudsgraden.*markedsrenten/s);
+  assert.match(a.omraader.indtjeningsevne.delkonklusion, /^Overskudsgraden er/);
+  assert.match(a.omraader.kapital.delkonklusion, /^Aktivernes omsætningshastighed er/);
 });

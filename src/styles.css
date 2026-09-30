@@ -324,3 +324,8 @@ details summary { cursor: pointer; font-size: 13px; color: var(--petrol); margin
 
 .citat { margin: 6px 0 8px; padding: 6px 12px; border-left: 3px solid var(--okker); background: #fbf4e6; font-size: 13px; color: var(--blaek); font-style: italic; }
 .citat-kilde { font-style: normal; font-weight: 600; color: var(--okker); }
+
+.delkonklusion { margin: 10px 0 4px; padding: 8px 14px; background: var(--petrol-lys); border-radius: var(--radius); }
+.delkonklusion p { margin: 2px 0; }
+.indledning { margin: 0 0 8px; font-style: italic; }
+.delkonklusion-titel { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--petrol); }

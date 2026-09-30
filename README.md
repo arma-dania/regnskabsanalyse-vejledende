@@ -36,13 +36,18 @@ Skal en definition ændres, er det den ene fil, der skal rettes — grafer, Word
 (`src/analyse/fraDataset.js`) og skriver **hvert nøgletal – eller hver gruppe
 af nøgletal, der hører sammen – op ad formuleringstrappen**, uden AI:
 
-- **Trin 1 Konstatering:** retning og størrelse over tre år. En ændring nævnes,
+- **Trin 1 Konstatering:** retning og størrelse over tre år, med ændringsprocenten
+  fra første til sidste år – samme tal som kolonnen "Ændring i %" i trin 3 – og
+  for procentnøgletal også ændringen i procentpoint. En ændring kaldes væsentlig,
   når den er mindst ½ procentpoint eller 5 %. I en gruppe nævnes hvert nøgletal.
 - **Trin 2 Forklaring:** tællerens og nævnerens udvikling (fx bruttoresultat mod
   omsætning) og sammenhængen med andre nøgletal – ligger årsagen i et andet
   nøgletal, henvises dertil.
 - **Trin 3 Vurdering:** de fire målestokke – sidste år, markedsrenten,
   tommelfingerreglerne og forretningsmodellen. Branchetal bruges ikke.
+- **Delkonklusion:** hvert analyseområde slutter med én delkonklusion, der
+  samler trapperne i området: hvad er sket, hvorfor, og er det godt eller
+  skidt målt mod målestokkene. Delkonklusionerne er byggestenene til trin 4.
 - **Trin 4 Forretningsmodellen** skrives i den samlede konklusion: styrker,
   svagheder, afvigelser fra profilen, en vurdering (holder / presset / under
   forandring) og anbefalinger, der følger af tallene.
@@ -61,8 +66,13 @@ deler forklaring og målestok – ellers ville samme argument stå flere gange:
 | Likviditetsgrad I og II (23-24) | Forskellen er kun varelageret |
 | P/E og kurs/indre værdi (26, 28) | Markedets pris mod et regnskabstal |
 
-Resten skrives hver for sig – også AG, OG og AOH, som forklares i hver sit
-område. AG's trappe henviser til de to andre i stedet for at gentage dem.
+Resten skrives hver for sig – også AG, OG og AOH, som alle står under
+rentabiliteten. **Indtjeningsevnen undersøger nærmere overskudsgraden, og
+kapitaltilpasningen undersøger nærmere aktivernes omsætningshastighed.** Det
+siges i en indledning til hvert af de to områder; forklaringerne i områderne
+føres tilbage til OG og AOH ("den lavere bruttomargin trækker overskudsgraden
+ned"), og delkonklusionen forklarer, hvorfor OG henholdsvis AOH har udviklet
+sig, som de har.
 
 **Claude** (`netlify/functions/skriv.mjs`) får motorens fund som data og
 omskriver dem til prosa. Claude må ikke regne eller finde på tal. Hvert tal i

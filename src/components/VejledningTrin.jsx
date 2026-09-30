@@ -48,6 +48,7 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
         return (
           <section className="kort" key={o.id}>
             <h3>{om.navn}</h3>
+            {om.indledning && <p className="indledning">{om.indledning}</p>}
             {om.grupper.map(g => {
               const fg = a.faldgruber.filter(f => f.gruppe === g.id)
               return (
@@ -62,6 +63,7 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
                 </div>
               )
             })}
+            {om.delkonklusion && <p><strong>Delkonklusion:</strong> {prosa.omraader?.[o.id]?.delkonklusion || om.delkonklusion}</p>}
           </section>
         )
       })}

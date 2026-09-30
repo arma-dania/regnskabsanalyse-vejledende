@@ -9,6 +9,9 @@
 
 import { medAfledte } from "./poster.js";
 
+// Overskudsgraden (2) og aktivernes omsætningshastighed (3) hører til
+// rentabiliteten. Indtjeningsevnen undersøger nærmere overskudsgraden, og
+// kapitaltilpasningen undersøger nærmere omsætningshastigheden.
 export const OMRAADER = [
   { id: "rentabilitet", navn: "Rentabilitetsanalyse", nrs: [1, 2, 3, 4, 5, 6] },
   { id: "indtjeningsevne", navn: "Indtjeningsevne", nrs: [7, 8, 9, 10, 11, 12] },

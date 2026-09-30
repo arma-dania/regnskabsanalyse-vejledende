@@ -11,8 +11,9 @@
 //   23-24  Forskellen er kun varelageret – og den forskel er selv en pointe.
 //   26+28  Markedets pris målt mod et regnskabstal; samme forklaring og målestok.
 //
-// AG, OG og AOH står hver for sig: de forklares i hvert sit område, og AG's
-// trappe henviser til de to andre i stedet for at gentage dem.
+// AG, OG og AOH står hver for sig under rentabiliteten. Indtjeningsevnen
+// undersøger nærmere overskudsgraden, og kapitaltilpasningen undersøger
+// nærmere aktivernes omsætningshastighed.
 
 export const GRUPPER = {
   rentabilitet: [

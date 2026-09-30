@@ -1,4 +1,4 @@
-// POST /api/skriv – lader Claude formulere motorens fund som prosa.
+// POST /.netlify/functions/skriv – lader Claude formulere motorens fund som prosa.
 //
 // Kun du bruger appen, så adgangen er én kode i miljøvariablen ADGANGSKODE.
 // Uden den kan enhver med adressen bruge din API-nøgle.
@@ -39,4 +39,3 @@ export default async function handler(req) {
   }
 }
 
-export const config = { path: "/api/skriv" };

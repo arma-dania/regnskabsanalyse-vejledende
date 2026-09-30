@@ -3,7 +3,6 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Vejledende besvarelse og underviservejledning til regnskabsanalyse på formuleringstrappen",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,14 +10,22 @@
     "proeve": "node --test proever/*.proeve.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.129.0",
-    "docx": "^9.5.1",
+    "docx": "^8.5.0",
+    "file-saver": "^2.0.5",
+    "linkedom": "^0.18.13",
+    "pdfjs-dist": "^4.4.168",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7",
+    "xlsx": "^0.18.5",
+    "@anthropic-ai/sdk": "^0.129.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^5.4.11"
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
   },
-  "engines": { "node": ">=22" }
+  "description": "Nøgletalsappen med en vejledende besvarelse og underviservejledning på formuleringstrappen",
+  "engines": {
+    "node": ">=20"
+  }
 }

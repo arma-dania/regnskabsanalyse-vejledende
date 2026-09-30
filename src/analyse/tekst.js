@@ -1,6 +1,6 @@
 // Små sproglige byggeklodser til analysens sætninger.
 
-import { NT, formatNt, formatAendring } from "./nogletal.js";
+import { NT, formatNt, formatAendring } from "./beregning.js";
 import { VAESENTLIG } from "./maalestok.js";
 
 // Nøgletallenes navne i bestemt form, så sætningerne kan begynde med dem.

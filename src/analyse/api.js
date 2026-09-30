@@ -1,13 +1,13 @@
 // Forbindelsen til serverfunktionen, der lader Claude formulere teksten.
 
-import { OMRAADER } from "./lib/nogletal.js";
+import { OMRAADER } from "./beregning.js";
 
 const KODENOEGLE = "rv-adgangskode";
 export const hentKode = () => { try { return sessionStorage.getItem(KODENOEGLE) || ""; } catch { return ""; } };
 export const gemKode = k => { try { sessionStorage.setItem(KODENOEGLE, k); } catch { /* privat vindue */ } };
 
 async function kald(del, data, kode) {
-  const svar = await fetch("/api/skriv", {
+  const svar = await fetch("/.netlify/functions/skriv", {
     method: "POST",
     headers: { "content-type": "application/json", "x-adgangskode": kode },
     body: JSON.stringify({ del, data }),

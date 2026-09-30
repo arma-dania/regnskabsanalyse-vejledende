@@ -336,3 +336,11 @@ details summary { cursor: pointer; font-size: 13px; color: var(--petrol); margin
 .word-valg strong { display: block; margin-bottom: 6px; }
 .word-valg .knap-raekke { margin-top: 10px; }
 .afkryds.slukket { opacity: .5; }
+.kaede { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px 4px; margin: 6px 0 14px; }
+.kaede-led-holder { display: flex; align-items: center; gap: 4px; }
+.kaede-pil { color: var(--daempet); font-weight: 600; padding: 0 2px; }
+.kaede-led { display: flex; flex-direction: column; padding: 6px 10px; border: 1px solid var(--linje); border-left: 4px solid var(--linje); border-radius: var(--radius); background: var(--kort); min-width: 120px; }
+.kaede-led.op { border-left-color: var(--op); }
+.kaede-led.ned { border-left-color: var(--ned); }
+.kaede-navn { font-size: 12px; color: var(--daempet); }
+.kaede-tal { font-family: 'IBM Plex Mono', monospace; font-size: 14px; white-space: nowrap; }

@@ -103,44 +103,36 @@ export function besvarelseBoern(a, prosa = {}) {
 /** Underviservejledningens indhold – også brugt i det samlede Word-dokument. */
 export function vejledningBoern(a, prosa = {}) {
   const k = a.konklusion;
+  const kaede = a.pointer?.kaede || [];
   const dele = [
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(`Underviservejledning – ${a.navn}`)] }),
-    p("Til gennemgangen af regnskabsanalysen med holdet. Bruges sammen med den vejledende besvarelse.", { run: { italics: true } }),
+    p("De vigtigste pointer og sammenhænge til gennemgangen med holdet. Den fulde trappe står i den vejledende besvarelse.", { run: { italics: true } }),
     ...forudsaetninger(a),
 
     h("Det store billede", HeadingLevel.HEADING_1),
-    p(prosa.konklusion?.fortaelling || k.samlet[0] || k.udkast[0]),
-    ...(k.styrker.length ? [fed("Styrker: ", ""), ...k.styrker.map(punkt)] : []),
-    ...(k.svagheder.length ? [fed("Svagheder: ", ""), ...k.svagheder.map(punkt)] : []),
-
-    h("Forslag til forløb (90 minutter)", HeadingLevel.HEADING_1),
-    tabel(["Tid", "Aktivitet"], [
-      ["0-10", "Genopfrisk formuleringstrappen. Skriv de fire spørgsmål på tavlen – de er ryggraden i gennemgangen."],
-      ["10-35", "Rentabilitet: tag afkastningsgraden op ad trappen sammen med holdet – konstatering, forklaring med overskudsgrad og omsætningshastighed, vurdering mod markedsrenten."],
-      ["35-50", "Indtjeningsevne og kapitaltilpasning: lad grupperne skrive hver sin trappe for et nøgletal eller en nøgletalsgruppe. Stil spørgsmålene under faldgruberne."],
-      ["50-65", "Soliditet og likviditet: tommelfingerreglerne – og hvornår forretningsmodellen er en bedre målestok."],
-      ["65-85", "Trin 4 i grupper: holder forretningsmodellen? Hver gruppe skriver én anbefaling, der følger af tallene."],
-      ["85-90", "Opsamling: hvilke faldgruber ramte vi? Hvilket trin var sværest?"],
-    ], [15, 85]),
-    luft(),
+    ...(prosa.konklusion?.samlet || k.samlet.join("\n") || k.udkast[0]).split(/\n+/).filter(x => x.trim()).map(x => p(x.trim())),
   ];
+  if (kaede.length) {
+    dele.push(h("Sammenhængskæden", HeadingLevel.HEADING_2),
+      p("AG = OG × AOH → EKF (gearing) → soliditet → likviditet. Følg kæden, og spørg ved hvert led: hvorfor?", { run: { italics: true } }),
+      tabel(["Led", a.aar[0], a.aar[2], "Retning"], kaede.map(x => [x.navn, x.fra, x.til, `${x.pil} ${x.bevaegelse}`]), [46, 18, 18, 18]),
+      luft());
+  }
+  if (k.styrker.length) dele.push(fed("Styrker: ", ""), ...k.styrker.map(punkt));
+  if (k.svagheder.length) dele.push(fed("Svagheder: ", ""), ...k.svagheder.map(punkt));
 
   for (const o of OMRAADER) {
     const om = a.omraader[o.id];
+    if (om.ikkeRelevant) continue;
     dele.push(h(om.navn, HeadingLevel.HEADING_1));
-    if (om.ikkeRelevant) { dele.push(p("Ikke relevant – der er ikke oplyst aktiedata.")); continue; }
-    if (om.indledning) dele.push(p(om.indledning, { run: { italics: true } }));
-    for (const g of om.grupper) {
-      dele.push(h(g.titel, HeadingLevel.HEADING_2));
-      if (g.noegle.length) dele.push(fed("Det skal de finde (trin 1): ", ""), ...g.noegle.map(punkt));
-      if (g.trin2.length) dele.push(fed("Forklaringen (trin 2): ", ""), ...g.trin2.map(punkt));
-      if (g.beretning?.length) dele.push(citat(g.beretning));
-      if (g.trin3.length) dele.push(fed("Målestokkene (trin 3): ", ""), ...g.trin3.map(punkt));
-      const fg = a.faldgruber.filter(f => f.gruppe === g.id);
-      if (fg.length) dele.push(fed("Faldgruber at tage fat i: ", ""), ...fg.flatMap(faldgrubeAfsnit));
-    }
     const dk = prosa?.omraader?.[o.id]?.delkonklusion || om.delkonklusion;
-    if (dk) dele.push(fed("Delkonklusion: ", dk.replace(/\n+/g, " ")));
+    if (dk) dele.push(fed("Hovedpointe: ", dk.replace(/\n+/g, " ")));
+    if (om.indledning) dele.push(p(om.indledning, { run: { italics: true } }));
+    dele.push(noegletalTabel(a, om), luft());
+    const sam = a.pointer?.sammenhaenge?.[o.id] || [];
+    if (sam.length) dele.push(fed("Sammenhænge, holdet skal se: ", ""), ...sam.map(punkt));
+    const fg = a.faldgruber.filter(f => f.omraade === o.id);
+    if (fg.length) dele.push(fed("Faldgruber at tage fat i: ", ""), ...fg.flatMap(faldgrubeAfsnit));
   }
 
   dele.push(h("Trin 4 – forretningsmodellen", HeadingLevel.HEADING_1));
@@ -154,14 +146,23 @@ export function vejledningBoern(a, prosa = {}) {
     punkt("Hvis I var ledelsen: hvad er det første, I ville gøre, og hvilket nøgletal skal vise, at det virker?"));
   for (const f of a.faldgruber.filter(f => f.omraade === "konklusion")) dele.push(...faldgrubeAfsnit(f));
 
+  dele.push(h("Forslag til forløb (90 minutter)", HeadingLevel.HEADING_1),
+    tabel(["Tid", "Aktivitet"], [
+      ["0-10", "Genopfrisk formuleringstrappen. Skriv de fire spørgsmål på tavlen – de er ryggraden i gennemgangen."],
+      ["10-25", "Det store billede og sammenhængskæden: hvad er sket med AG, og hvilket led i kæden forklarer det?"],
+      ["25-50", "Indtjeningsevne og kapitaltilpasning: grupperne forklarer hver sin faktor (OG eller AOH). Brug sammenhængene og faldgruberne."],
+      ["50-65", "Soliditet og likviditet: tommelfingerreglerne – og hvad resultat, udbytte og arbejdskapital betyder for dem."],
+      ["65-85", "Trin 4 i grupper: holder forretningsmodellen? Hver gruppe skriver én anbefaling, der følger af tallene."],
+      ["85-90", "Opsamling: hvilke faldgruber ramte vi? Hvilket trin var sværest?"],
+    ], [15, 85]),
+    h("Tjekliste: hvornår er et trin nået?", HeadingLevel.HEADING_2),
+    tabel(["Trin", "Kravet"], TRIN.map(t => [`${t.nr} ${t.navn}`, t.krav]), [25, 75]));
+
   if (a.beretning && a.brugCitater) {
     dele.push(h("Bilag: Ledelsesberetningen", HeadingLevel.HEADING_1),
       p("Som indlæst fra årsrapporten. Brug den til at holde ledelsens forklaringer op mod nøgletallene.", { run: { italics: true } }));
     for (const afsnit of a.beretning.split(/\n+/)) if (afsnit.trim()) dele.push(p(afsnit.trim(), { run: { size: 20 } }));
   }
-
-  dele.push(h("Tjekliste: hvornår er et trin nået?", HeadingLevel.HEADING_1),
-    tabel(["Trin", "Kravet"], TRIN.map(t => [`${t.nr} ${t.navn}`, t.krav]), [25, 75]));
   return dele;
 }
 

@@ -320,10 +320,10 @@ function Omraade ({ a, id, prosa, dk, saet, kanSkrive, skriv, skrivDk }) {
               {kanSkrive && <button className="knap lys lille" onClick={() => skriv(g)}>{prosa[g.id] ? 'Skriv igen' : 'Skriv som prosa'}</button>}
             </div>
             <table className="data smal">
-              <thead><tr><th>Nøgletal</th>{a.aar.map(y => <th key={y} className="num">{y}</th>)}</tr></thead>
+              <thead><tr><th>Nøgletal</th>{a.aar.map(y => <th key={y} className="num">{y}</th>)}<th className="num">Ændring i %</th></tr></thead>
               <tbody>
                 {o.tabel.filter(r => g.nrs.includes(r.nr)).map(r => (
-                  <tr key={r.nr}><td>{r.nr}. {r.navn}</td>{r.tekst.map((t, i) => <td key={i} className="num">{t}</td>)}</tr>
+                  <tr key={r.nr}><td>{r.nr}. {r.navn}</td>{r.tekst.map((t, i) => <td key={i} className="num">{t}</td>)}<td className="num">{r.pct}</td></tr>
                 ))}
               </tbody>
             </table>

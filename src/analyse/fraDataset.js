@@ -36,6 +36,8 @@ export function fraFund(fund = [], aar = [], visEnhed = "") {
     for (const d of kilder)
       for (const art of ["foreslaaet", "betalt"])
         if (ud[art] == null && d.udbytte?.[y]?.[art] != null) ud[art] = d.udbytte[y][art] * faktor(d);
+    // 0 betyder, at regnskabet udtrykkeligt siger "intet udbytte".
+    for (const art of ["foreslaaet", "betalt"]) if (ud[art] === 0) ud[art] = null;
     return ud;
   });
   return { beretning, udbytte };

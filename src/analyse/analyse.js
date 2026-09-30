@@ -60,6 +60,7 @@ export function analyser(kase, noegletal = null) {
           noegle: [
             ...g.nrs.filter(nr => serie(nr)[2] != null).map(nr => `${NT[nr].navn}: ${serie(nr).map(x => formatNt(nr, x, ctx.enh)).join(" → ")}`),
             ...(g.id === "sol" && ctx.udbytte.some(u => u?.foreslaaet != null) ? [`Udbytte for året: ${ctx.udbytte.map(u => fmtBeloeb(u?.foreslaaet, ctx.enh)).join(" → ")}`] : []),
+            ...(g.id === "sol" && ctx.udbytte.some(u => u?.betalt) ? [`Udbytte betalt i året: ${ctx.udbytte.map(u => fmtBeloeb(u?.betalt, ctx.enh)).join(" → ")}`] : []),
           ],
           // Ledelsens egne ord om netop dette nøgletal – til trin 2, og til
           // at holde op mod tallene.
@@ -207,6 +208,20 @@ function udbytteSaetninger(ctx) {
       ? `For ${ctx.aar[i]} er der foreslået et udbytte på ${fmtBeloeb(u.foreslaaet, ctx.enh)}, svarende til ${fmtPct((u.foreslaaet / res) * 100)} af årets resultat.`
       : `For ${ctx.aar[i]} er der foreslået et udbytte på ${fmtBeloeb(u.foreslaaet, ctx.enh)}, selv om årets resultat var ${fmtBeloeb(res, ctx.enh)}.`);
   });
+  // Betalt udbytte i året – typisk det, der blev foreslået for året før.
+  // Det er det, der trækker egenkapitalen ned i året.
+  ctx.udbytte.forEach((u, i) => {
+    if (!u?.betalt) return;
+    const res = ctx.V[i]?.aaretsResultat, foer = i > 0 ? ctx.udbytte[i - 1]?.foreslaaet : null;
+    ud.push(`I ${ctx.aar[i]} blev der udbetalt ${fmtBeloeb(u.betalt, ctx.enh)} i udbytte${foer ? `, som blev foreslået for ${ctx.aar[i - 1]}` : ""}.` +
+      (res != null && u.betalt > res ? ` Det er mere end årets resultat på ${fmtBeloeb(res, ctx.enh)}, så egenkapitalen falder.` : ""));
+  });
+  const betaltSidst = ctx.udbytte[2]?.betalt, resSidst = ctx.V[2]?.aaretsResultat;
+  if (betaltSidst && resSidst != null && betaltSidst > resSidst)
+    faldgrube(ctx, "manglende-aarsag",
+      `Der er udbetalt ${fmtBeloeb(betaltSidst, ctx.enh)} i udbytte i ${ctx.aar[2]} – mere end årets resultat. Studerende forklarer faldet i soliditeten uden at nævne udbyttet, eller tror, at det er årets eget udbytte.`,
+      "Hvad står der i egenkapitalopgørelsen? Hvornår blev udbyttet foreslået, og hvornår blev det betalt?",
+      `Udbyttet blev ${ctx.udbytte[1]?.foreslaaet ? `foreslået for ${ctx.aar[1]} og ` : ""}betalt i ${ctx.aar[2]}. Det forklarer, at egenkapitalen falder, selv om årets resultat er positivt.`);
   const sidst = ctx.udbytte[2]?.foreslaaet, res = ctx.V[2]?.aaretsResultat;
   if (sidst != null && res != null && sidst > res)
     faldgrube(ctx, "manglende-aarsag",
@@ -845,7 +860,8 @@ const DELKONKLUSION = {
     const sol = ctx.sidst(20);
     if (sol == null) return null;
     const u = ctx.udbytte[2]?.foreslaaet;
-    return `${er(ctx, 20, "Soliditetsgraden")} og ligger ${sol >= 30 ? "over" : "under"} tommelfingerreglen på 30 %.${u != null ? ` Det foreslåede udbytte på ${fmtBeloeb(u, ctx.enh)} svækker den yderligere, når det udbetales.` : ""}`;
+    const b = ctx.udbytte[2]?.betalt;
+    return `${er(ctx, 20, "Soliditetsgraden")} og ligger ${sol >= 30 ? "over" : "under"} tommelfingerreglen på 30 %.${b && bevaegelse(ctx, 20) === "forringet" ? ` Faldet skyldes især udbyttet på ${fmtBeloeb(b, ctx.enh)}, der blev betalt i ${ctx.aar[2]}.` : ""}${u != null ? ` Det foreslåede udbytte på ${fmtBeloeb(u, ctx.enh)} svækker den yderligere, når det udbetales.` : ""}`;
   },
   anlaegsgrad(ctx) {
     if (ctx.sidst(21) == null) return null;

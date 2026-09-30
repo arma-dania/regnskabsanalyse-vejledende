@@ -43,6 +43,7 @@ export function analyser(kase, noegletal = null) {
     enh: kase.enhed || "",
     udbytte: kase.udbytte || [{}, {}, {}],
     beretning: kase.beretning || "",
+    brugCitater: kase.brugCitater !== false,
     faldgruber: [],
   };
 
@@ -64,7 +65,7 @@ export function analyser(kase, noegletal = null) {
           ],
           // Ledelsens egne ord om netop dette nøgletal – til trin 2, og til
           // at holde op mod tallene.
-          beretning: citater(ctx.beretning, g.id),
+          beretning: ctx.brugCitater ? citater(ctx.beretning, g.id) : [],
         };
       });
     omraader[o.id] = {
@@ -90,6 +91,7 @@ export function analyser(kase, noegletal = null) {
     beregnet, omraader, konklusion,
     faldgruber: ctx.faldgruber,
     beretning: ctx.beretning,
+    brugCitater: ctx.brugCitater,
     udbytte: ctx.udbytte,
     skoen: beregnet.some(b => b.mellem.skoen),
   };
@@ -1009,7 +1011,7 @@ function konkluder(ctx) {
     anbefalinger.length ? `Anbefaling til ledelsen: ${anbefalinger.join(" ")}` : "Anbefaling til ledelsen: fasthold modellen, og følg især de nøgletal, der har bevæget sig mest.",
   ];
 
-  if (ctx.beretning)
+  if (ctx.beretning && ctx.brugCitater)
     faldgrube(ctx, "beretning-ukritisk",
       "Studerende gengiver ledelsens forklaringer som kendsgerninger.",
       "Hvad siger ledelsen – og bekræfter nøgletallene det? Hvad nævner beretningen ikke?",

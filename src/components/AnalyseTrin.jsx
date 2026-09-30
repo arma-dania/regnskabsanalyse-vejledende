@@ -144,9 +144,14 @@ function Beretning ({ dataset, setDataset, analyse, indlaest }) {
         <button className="knap lys lille" onClick={() => setAaben(!aaben)}>{aaben ? 'Skjul' : 'Vis og ret'}</button>
       </div>
       <p className="hjaelp">
-        {tekst ? `Ledelsesberetningen er indlæst (${tekst.length.toLocaleString('da-DK')} tegn) og bruges i forklaringerne og i konklusionen.` : 'Der blev ikke fundet en ledelsesberetning i det indlæste regnskab. Indsæt den selv under "Vis og ret".'}
+        {tekst ? `Ledelsesberetningen er indlæst (${tekst.length.toLocaleString('da-DK')} tegn).` : 'Der blev ikke fundet en ledelsesberetning i det indlæste regnskab. Indsæt den selv under "Vis og ret".'}
         {' '}Udbytte for året: {analyse.aar.map((y, i) => `${y} ${analyse.udbytte[i]?.foreslaaet == null ? '–' : vis(analyse.udbytte[i].foreslaaet)}`).join(', ')} ({dataset.enhed}).
       </p>
+      <label className="afkryds">
+        <input type="checkbox" checked={a.brugCitater !== false} onChange={e => saet({ brugCitater: e.target.checked })} disabled={!tekst} />
+        {' '}Brug citater fra ledelsesberetningen i analysen
+        <span className="hjaelp"> – ved hvert nøgletal (trin 2), i Claudes prosa og i konklusionen. Slå det fra, hvis beretningen ikke siger noget brugbart om tallene.</span>
+      </label>
       {aaben && (
         <>
           <label className="felt">Udbytte i {dataset.enhed} – rettes kun, hvis importen ikke fandt det rigtige tal</label>

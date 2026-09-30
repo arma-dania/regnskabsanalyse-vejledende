@@ -39,9 +39,34 @@ function afsnit (tekst, opts = {}) {
 }
 
 export async function hentWord (dataset, { medGrafer = true } = {}) {
+  const grafer = medGrafer ? await hentAlleGrafer() : {}
+  const doc = new Document({
+    creator: 'Regnskabsanalyse',
+    title: `${dataset.virksomhed || 'Regnskabsanalyse'} – nøgletal`,
+    styles: STILE,
+    sections: [{ properties: { page: { margin: MARGEN } }, children: noegletalBoern(dataset, grafer) }]
+  })
+  const blob = await Packer.toBlob(doc)
+  const navn = filnavn(dataset, 'docx')
+  saveAs(blob, navn)
+  return navn
+}
+
+export const STILE = {
+  default: { document: { run: { font: 'Calibri', size: 21 } } },
+  paragraphStyles: [
+    { id: 'Title', name: 'Title', basedOn: 'Normal', next: 'Normal', run: { size: 48, bold: true, color: '14202E' }, paragraph: { spacing: { after: 160 } } },
+    { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', run: { size: 30, bold: true, color: '14202E' } },
+    { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', run: { size: 25, bold: true, color: '1F5C6E' } },
+    { id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', run: { size: 22, bold: true, color: '14202E' } }
+  ]
+}
+export const MARGEN = { top: 1000, bottom: 1000, left: 1000, right: 1000 }
+
+/** Nøgletal og grafer som Word-indhold. graferne hentes med hentAlleGrafer(). */
+export function noegletalBoern (dataset, grafer = {}) {
   const aarNavne = dataset.aar.map((y, i) => y.label || `År ${i + 1}`)
   const resultater = beregnAlle(dataset)
-  const grafer = medGrafer ? await hentAlleGrafer() : {}
 
   const boernForside = [
     new Paragraph({
@@ -147,26 +172,5 @@ export async function hentWord (dataset, { medGrafer = true } = {}) {
     }))
   })
 
-  const doc = new Document({
-    creator: 'Regnskabsanalyse',
-    title: `${dataset.virksomhed || 'Regnskabsanalyse'} – nøgletal`,
-    styles: {
-      default: { document: { run: { font: 'Calibri', size: 21 } } },
-      paragraphStyles: [
-        { id: 'Title', name: 'Title', basedOn: 'Normal', next: 'Normal', run: { size: 48, bold: true, color: '14202E' }, paragraph: { spacing: { after: 160 } } },
-        { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', run: { size: 30, bold: true, color: '14202E' } },
-        { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', run: { size: 25, bold: true, color: '1F5C6E' } },
-        { id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', run: { size: 22, bold: true, color: '14202E' } }
-      ]
-    },
-    sections: [{
-      properties: { page: { margin: { top: 1000, bottom: 1000, left: 1000, right: 1000 } } },
-      children: [...boernForside, ...analyseBoern, ...nogletalBoern, ...detaljer]
-    }]
-  })
-
-  const blob = await Packer.toBlob(doc)
-  const navn = filnavn(dataset, 'docx')
-  saveAs(blob, navn)
-  return navn
+  return [...boernForside, ...analyseBoern, ...nogletalBoern, ...detaljer]
 }

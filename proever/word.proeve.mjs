@@ -3,9 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Packer } from "docx";
+import JSZip from "jszip";
 import { EKSEMPEL } from "../src/analyse/eksempel.js";
 import { analyser } from "../src/analyse/analyse.js";
-import { besvarelseDok, vejledningDok } from "../src/analyse/word.js";
+import { besvarelseDok, vejledningDok, besvarelseBoern, vejledningBoern, dok } from "../src/analyse/word.js";
 import { kodeOk } from "../netlify/functions/skriv.mjs";
 import { gruppePrompt, konklusionPrompt } from "../netlify/functions/lib/prompter.mjs";
 
@@ -17,6 +18,15 @@ test("begge Word-dokumenter kan laves – med og uden Claudes prosa", async () =
     assert.ok(b1.length > 5000 && b2.length > 5000);
     assert.equal(b1.subarray(0, 2).toString(), "PK");
   }
+});
+
+test("et samlet Word-dokument med analyse og underviservejledning har én sektion pr. del", async () => {
+  const a = analyser(EKSEMPEL);
+  const d = dok(besvarelseBoern(a), vejledningBoern(a));
+  const b = await Packer.toBuffer(d);
+  assert.equal(b.subarray(0, 2).toString(), "PK");
+  const xml = await (await JSZip.loadAsync(b)).file("word/document.xml").async("string");
+  assert.equal((xml.match(/<w:sectPr/g) || []).length, 2);
 });
 
 test("adgangskoden tjekkes, og en manglende kode i Netlify siges tydeligt", () => {

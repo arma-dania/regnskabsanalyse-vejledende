@@ -321,3 +321,6 @@ details summary { cursor: pointer; font-size: 13px; color: var(--petrol); margin
 .faldgrube { border-left: 3px solid var(--okker); background: #fbf4e6; padding: 8px 14px; border-radius: 0 var(--radius) var(--radius) 0; margin: 10px 0; }
 .faldgrube p { margin: 3px 0; font-size: 14px; }
 .faldgrube-tema { font-weight: 600; color: var(--okker); }
+
+.citat { margin: 6px 0 8px; padding: 6px 12px; border-left: 3px solid var(--okker); background: #fbf4e6; font-size: 13px; color: var(--blaek); font-style: italic; }
+.citat-kilde { font-style: normal; font-weight: 600; color: var(--okker); }

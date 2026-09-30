@@ -12,7 +12,7 @@ const komma = x => String(x).replace('.', ',')
  * Trin 4: målestokkene og den vejledende besvarelse, skrevet ud fra
  * nøgletallene fra trin 3.
  */
-export default function AnalyseTrin ({ dataset, setDataset, analyse, prosa, setProsa, fingeraftryk, foraeldet, hentWord, travl }) {
+export default function AnalyseTrin ({ dataset, setDataset, analyse, indlaest, prosa, setProsa, fingeraftryk, foraeldet, hentWord, travl }) {
   return (
     <>
       <h2 className="sektion-titel">Vejledende besvarelse – {analyse.navn}</h2>
@@ -22,6 +22,7 @@ export default function AnalyseTrin ({ dataset, setDataset, analyse, prosa, setP
         til prosa.
       </p>
       <Maalestokke dataset={dataset} setDataset={setDataset} analyse={analyse} />
+      <Beretning dataset={dataset} setDataset={setDataset} analyse={analyse} indlaest={indlaest} />
       <div className="knap-raekke">
         <button className="knap primaer" disabled={!!travl} onClick={() => hentWord('besvarelse')}>
           {travl === 'besvarelse' ? 'Danner …' : 'Hent vejledende besvarelse (Word)'}
@@ -115,6 +116,67 @@ function Maalestokke ({ dataset, setDataset, analyse }) {
           <ul className="hjaelp">
             {Object.entries(TOMMELFINGERREGLER).map(([nr, r]) => <li key={nr}><strong>{r.tekst}</strong> {r.hvorfor}</li>)}
           </ul>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ====================== Ledelsesberetning og udbytte ====================== */
+
+function Beretning ({ dataset, setDataset, analyse, indlaest }) {
+  const a = { ...tomAnalyse(), ...(dataset.analyse || {}) }
+  const saet = aendring => setDataset(d => ({ ...d, analyse: { ...tomAnalyse(), ...(d.analyse || {}), ...aendring } }))
+  const [aaben, setAaben] = useState(false)
+  const udb = a.udbytte || tomAnalyse().udbytte
+  const saetUdbytte = (art, i, x) => {
+    const t = Number(String(x).replace(/\./g, '').replace(',', '.'))
+    const liste = [...(udb[art] || [null, null, null])]
+    liste[i] = x === '' || !Number.isFinite(t) ? null : t
+    saet({ udbytte: { ...udb, [art]: liste } })
+  }
+  const vis = x => (x == null ? '' : new Intl.NumberFormat('da-DK', { maximumFractionDigits: 1 }).format(x))
+  const tekst = analyse.beretning || ''
+  return (
+    <div className="kort">
+      <div className="kort-top">
+        <h3>Ledelsesberetning og udbytte</h3>
+        <button className="knap lys lille" onClick={() => setAaben(!aaben)}>{aaben ? 'Skjul' : 'Vis og ret'}</button>
+      </div>
+      <p className="hjaelp">
+        {tekst ? `Ledelsesberetningen er indlæst (${tekst.length.toLocaleString('da-DK')} tegn) og bruges i forklaringerne og i konklusionen.` : 'Der blev ikke fundet en ledelsesberetning i det indlæste regnskab. Indsæt den selv under "Vis og ret".'}
+        {' '}Udbytte for året: {analyse.aar.map((y, i) => `${y} ${analyse.udbytte[i]?.foreslaaet == null ? '–' : vis(analyse.udbytte[i].foreslaaet)}`).join(', ')} ({dataset.enhed}).
+      </p>
+      {aaben && (
+        <>
+          <label className="felt">Udbytte i {dataset.enhed} – rettes kun, hvis importen ikke fandt det rigtige tal</label>
+          <table className="data smal">
+            <thead><tr><th /> {analyse.aar.map(y => <th key={y} className="num">{y}</th>)}</tr></thead>
+            <tbody>
+              {[['foreslaaet', 'Foreslået udbytte for året'], ['betalt', 'Betalt udbytte i året']].map(([art, navn]) => (
+                <tr key={art}>
+                  <td>{navn}</td>
+                  {analyse.aar.map((y, i) => (
+                    <td key={y} className="num">
+                      <input
+                        type="text" inputMode="decimal" size={9}
+                        placeholder={vis(indlaest?.udbytte?.[i]?.[art])}
+                        defaultValue={vis(udb[art]?.[i])}
+                        onBlur={e => saetUdbytte(art, i, e.target.value)}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <label className="felt" style={{ marginTop: 16 }}>Ledelsesberetningen</label>
+          <textarea
+            rows={10} key={a.beretning == null ? 'indlaest' : 'rettet'}
+            defaultValue={tekst} onBlur={e => saet({ beretning: e.target.value === (indlaest?.beretning || '') ? null : e.target.value })}
+            placeholder="Indsæt ledelsesberetningen her, hvis den ikke blev fundet ved indlæsningen."
+          />
+          {a.beretning != null && <button className="knap lys lille" onClick={() => saet({ beretning: null })}>Brug den indlæste beretning</button>}
         </>
       )}
     </div>
@@ -246,6 +308,12 @@ function Omraade ({ a, id, prosa, saet, kanSkrive, skriv }) {
                 {prosa[g.id]
                   ? <Prosa tekst={prosa[g.id][`trin${t.nr}`]} saet={saet} a={a} />
                   : g[`trin${t.nr}`].map((x, i) => <p key={i}>{x}</p>)}
+                {t.nr === 2 && g.beretning.length > 0 && (
+                  <blockquote className="citat">
+                    <span className="citat-kilde">Ledelsesberetningen:</span>
+                    {g.beretning.map((c, i) => <span key={i}> »{c}«</span>)}
+                  </blockquote>
+                )}
               </div>
             ))}
           </div>

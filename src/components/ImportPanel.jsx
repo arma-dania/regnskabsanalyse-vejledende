@@ -3,6 +3,7 @@ import { importerPdf } from '../lib/pdfImport.js'
 import { importerIxbrlLink, importerXbrlFil, soegRegnskaber, diagnostikTekst } from '../lib/ixbrlImport.js'
 import { fordelKolonner, anvendFordeling } from '../lib/fordeling.js'
 import { REGNSKABSAFSNIT, emptyDataset, visningsfaktor } from '../lib/model.js'
+import { kontrollerEnheder } from '../lib/enheder.js'
 
 const fmt = (n, enhed) => (n == null ? '–' : new Intl.NumberFormat('da-DK', { maximumFractionDigits: /mio/.test(enhed || '') ? 1 : 0 }).format(n))
 
@@ -51,21 +52,27 @@ export default function ImportPanel ({ dataset, setDataset, gaaTilTrin, fund, se
   // virksomhed — ellers ville tallene fra to selskaber blive flettet sammen
   // år for år, og det første selskabs navn blive hængende. Er de fra en
   // anden virksomhed (eller bedt om at erstatte), startes der forfra.
+  //
+  // Alle regnskaber regnes om til kroner og tjekkes for, at årene står i
+  // samme enhed (se lib/enheder.js), før de lægges sammen.
   function modtag (nye, { erstat = false } = {}) {
     const andenVirksomhed = !erstat && fund.some(gammel => nye.some(ny => !sammeVirksomhed(gammel, ny)))
     const navn = nye.find(n => n.virksomhed)?.virksomhed || ''
-    if (erstat || andenVirksomhed || fund.length === 0) {
+    const forfra = erstat || andenVirksomhed || fund.length === 0
+    const { docs, beskeder } = kontrollerEnheder(forfra ? nye : [...fund, ...nye])
+    setFund(docs)
+    if (forfra) {
       const tom = emptyDataset()
-      setFund(nye)
-      const grundenhed = nye.find(n => n.enhed)?.enhed || tom.enhed
-      setDataset({ ...tom, virksomhed: navn, grundenhed, enhed: nye.find(n => n.visEnhed)?.visEnhed || grundenhed })
+      const visEnhed = nye.find(n => n.visEnhed)?.visEnhed || nye.find(n => n.enhed)?.enhed || tom.enhed
+      setDataset({ ...tom, virksomhed: navn, grundenhed: 'kr.', enhed: visEnhed })
     } else {
-      setFund(f => [...f, ...nye])
-      setDataset(d => ({ ...d, virksomhed: d.virksomhed || navn }))
+      setDataset(d => ({ ...d, virksomhed: d.virksomhed || navn, grundenhed: 'kr.' }))
     }
-    return andenVirksomhed
-      ? `De tidligere indlæste regnskaber${dataset.virksomhed ? ` for ${dataset.virksomhed}` : ''} er fjernet, fordi de nye er fra en anden virksomhed${navn ? ` (${navn})` : ''}.`
-      : null
+    const noter = [
+      andenVirksomhed ? `De tidligere indlæste regnskaber${dataset.virksomhed ? ` for ${dataset.virksomhed}` : ''} er fjernet, fordi de nye er fra en anden virksomhed${navn ? ` (${navn})` : ''}.` : null,
+      ...beskeder.map(b => b.tekst)
+    ].filter(Boolean)
+    return noter.length ? noter.join(' ') : null
   }
 
   async function haandterFiler (filer) {

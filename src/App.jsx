@@ -84,7 +84,8 @@ export default function App () {
 
   // Analysen skrives ud fra de samme nøgletal, som står i trin 3.
   const klar = useMemo(() => klarTilAnalyse(dataset), [dataset])
-  const analyseGrundlag = useMemo(() => (klar ? fraDataset(dataset) : null), [dataset, klar])
+  // Ledelsesberetningen og udbyttet hentes fra de indlæste dokumenter (fund).
+  const analyseGrundlag = useMemo(() => (klar ? fraDataset(dataset, fund) : null), [dataset, fund, klar])
   const analyse = useMemo(() => {
     if (!analyseGrundlag) return null
     try { return analyser(analyseGrundlag.kase, analyseGrundlag.noegletal) } catch (e) { console.error(e); return null }
@@ -349,7 +350,7 @@ export default function App () {
         )}
         {trin === 4 && analyse && (
           <AnalyseTrin
-            dataset={dataset} setDataset={setDataset} analyse={analyse}
+            dataset={dataset} setDataset={setDataset} analyse={analyse} indlaest={analyseGrundlag.indlaest}
             prosa={prosa} setProsa={setProsa} fingeraftryk={fingeraftryk} foraeldet={prosaForaeldet}
             hentWord={hentAnalyseWord} travl={travl}
           />

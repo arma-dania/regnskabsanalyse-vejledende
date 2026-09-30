@@ -1,5 +1,7 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import { FIELD_MAP } from './model.js'
+import { udtraekBeretning, udbytteFraLinjer } from './beretning.js'
+import { gaetEnhed } from './enheder.js'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
@@ -68,12 +70,6 @@ function linjerFraSide (indhold) {
     .map(([, items]) => items.sort((a, b) => a.x - b.x).map(i => i.str).join(' ').replace(/\s+/g, ' ').trim())
 }
 
-function gaetEnhed (tekst) {
-  if (/mio\.?\s*kr/i.test(tekst)) return 'mio. kr.'
-  if (/(t\.?\s*kr|1\.000\s*kr|tusinde kr)/i.test(tekst)) return '1.000 kr.'
-  return 'kr.'
-}
-
 function gaetAarstal (tekst) {
   const fund = [...tekst.matchAll(/\b(19|20)\d{2}\b/g)].map(m => parseInt(m[0], 10))
   const taeller = {}
@@ -126,6 +122,8 @@ export async function importerPdf (file) {
   })
 
   const aarstal = gaetAarstal(helTekst.slice(0, 4000))
+  const beretning = udtraekBeretning(alleLinjer)
+  const udbytte = udbytteFraLinjer(alleLinjer, aarstal.map(String), parseDanskTal)
   const navn = (alleLinjer.find(l => /(A\/S|ApS|I\/S|K\/S|IVS)\s*$/.test(l)) || '').trim()
   const cvrCifre = (helTekst.match(/CVR[\s.-]*(?:nr|nummer)?[\s.:-]*((?:\d\s?){8})/i)?.[1] || '').replace(/\s/g, '')
 
@@ -134,6 +132,8 @@ export async function importerPdf (file) {
     virksomhed: navn,
     cvr: cvrCifre.length === 8 ? cvrCifre : null,
     enhed: gaetEnhed(helTekst),
+    beretning,
+    udbytte,
     poster,
     kolonner: [
       { navn: aarstal[0] ? String(aarstal[0]) : 'Regnskabsår', values: kolonner[0] },

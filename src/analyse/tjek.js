@@ -12,7 +12,7 @@ const erFri = s => !s.includes(",") && (Number(s) <= 12 || /^(19|20)\d\d$/.test(
 
 export function talIAnalysen(a) {
   const kilder = JSON.stringify([
-    a.omraader, a.konklusion, a.faldgruber, a.rente, a.forretningsmodel,
+    a.omraader, a.konklusion, a.faldgruber, a.rente, a.forretningsmodel, a.beretning, a.udbytte,
     a.beregnet.map(b => b.n), a.profil,
   ]);
   const saet = new Set();

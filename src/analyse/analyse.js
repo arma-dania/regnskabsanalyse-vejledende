@@ -41,6 +41,8 @@ export function analyser(kase, noegletal = null) {
     M: beregnet.map(b => b.mellem),
     profil: findProfil(kase.profil),
     enh: kase.enhed || "",
+    udbytte: kase.udbytte || [{}, {}, {}],
+    beretning: kase.beretning || "",
     faldgruber: [],
   };
 
@@ -55,7 +57,13 @@ export function analyser(kase, noegletal = null) {
           id: g.id, nrs: g.nrs,
           titel: g.titel || NT[g.nrs[0]].navn,
           trin1: ren(t.trin1), trin2: ren(t.trin2), trin3: ren(t.trin3),
-          noegle: g.nrs.filter(nr => serie(nr)[2] != null).map(nr => `${NT[nr].navn}: ${serie(nr).map(x => formatNt(nr, x, ctx.enh)).join(" → ")}`),
+          noegle: [
+            ...g.nrs.filter(nr => serie(nr)[2] != null).map(nr => `${NT[nr].navn}: ${serie(nr).map(x => formatNt(nr, x, ctx.enh)).join(" → ")}`),
+            ...(g.id === "sol" && ctx.udbytte.some(u => u?.foreslaaet != null) ? [`Udbytte for året: ${ctx.udbytte.map(u => fmtBeloeb(u?.foreslaaet, ctx.enh)).join(" → ")}`] : []),
+          ],
+          // Ledelsens egne ord om netop dette nøgletal – til trin 2, og til
+          // at holde op mod tallene.
+          beretning: citater(ctx.beretning, g.id),
         };
       });
     omraader[o.id] = {
@@ -78,6 +86,8 @@ export function analyser(kase, noegletal = null) {
     forretningsmodel: kase.forretningsmodel || "",
     beregnet, omraader, konklusion,
     faldgruber: ctx.faldgruber,
+    beretning: ctx.beretning,
+    udbytte: ctx.udbytte,
     skoen: beregnet.some(b => b.mellem.skoen),
   };
 }
@@ -178,6 +188,42 @@ function markedsrenten(ctx, nr, over, under) {
   return v >= mr ? over(fmtPpU(v - mr), grundlag, v - mr) : under(fmtPpU(v - mr), grundlag, v - mr);
 }
 
+/** Udbyttet for de år, det kendes, og hvor stor en del af årets resultat det er. */
+function udbytteSaetninger(ctx) {
+  const ud = [];
+  ctx.udbytte.forEach((u, i) => {
+    const res = ctx.V[i]?.aaretsResultat;
+    if (u?.foreslaaet == null) return;
+    ud.push(res > 0
+      ? `For ${ctx.aar[i]} er der foreslået et udbytte på ${fmtBeloeb(u.foreslaaet, ctx.enh)}, svarende til ${fmtPct((u.foreslaaet / res) * 100)} af årets resultat.`
+      : `For ${ctx.aar[i]} er der foreslået et udbytte på ${fmtBeloeb(u.foreslaaet, ctx.enh)}, selv om årets resultat var ${fmtBeloeb(res, ctx.enh)}.`);
+  });
+  const sidst = ctx.udbytte[2]?.foreslaaet, res = ctx.V[2]?.aaretsResultat;
+  if (sidst != null && res != null && sidst > res)
+    faldgrube(ctx, "manglende-aarsag",
+      `Udbyttet for ${ctx.aar[2]} er større end årets resultat. Studerende forklarer udviklingen i egenkapitalen og soliditeten uden at nævne udbyttet.`,
+      "Hvor er overskuddet blevet af? Se resultatdisponeringen og egenkapitalopgørelsen.",
+      `Udbyttet på ${fmtBeloeb(sidst, ctx.enh)} overstiger årets resultat på ${fmtBeloeb(res, ctx.enh)}, så egenkapitalen tappes.`);
+  else if (sidst != null)
+    faldgrube(ctx, "manglende-aarsag",
+      "Studerende forklarer soliditeten med resultatet alene og overser, at en del af overskuddet udloddes som udbytte.",
+      "Hvor meget af årets resultat bliver i virksomheden?",
+      `Udbyttet på ${fmtBeloeb(sidst, ctx.enh)} forlader virksomheden, når det udbetales.`);
+  return ud;
+}
+
+/**
+ * Soliditeten efter udbetaling af det foreslåede udbytte. Efter
+ * årsregnskabsloven står det foreslåede udbytte i egenkapitalen ved årets
+ * udgang; når det udbetales, falder både egenkapitalen og aktiverne.
+ */
+function efterUdbytte(ctx) {
+  const u = ctx.udbytte[2]?.foreslaaet, v = ctx.V[2];
+  if (u == null || v.egenkapital == null || !v.aktiverIAlt) return null;
+  const efter = ((v.egenkapital - u) / (v.aktiverIAlt - u)) * 100;
+  return `Når det foreslåede udbytte på ${fmtBeloeb(u, ctx.enh)} udbetales, falder soliditetsgraden fra ${fmtPct(ctx.sidst(20))} til ${fmtPct(efter)}${efter < 30 && ctx.sidst(20) >= 30 ? " – under tommelfingerreglen" : ""}.`;
+}
+
 // Fordelingen af ændringen i AG på OG og AOH (kædesubstitution). Vises ikke,
 // men bruges til at sige, hvilken faktor der driver udviklingen.
 function agDrivere(ctx) {
@@ -185,6 +231,45 @@ function agDrivere(ctx) {
   const [aoh0, aoh2] = [ctx.serie(3)[0], ctx.serie(3)[2]];
   if ([og0, og2, aoh0, aoh2].some(x => x == null)) return null;
   return { og: (og2 - og0) * aoh0, aoh: og2 * (aoh2 - aoh0) };
+}
+
+/* ====================== Ledelsesberetningen ====================== */
+
+// Ord, der viser, at en sætning i beretningen handler om nøgletallet.
+const NOEGLEORD = {
+  ag: /afkast|forrent/i,
+  og: /overskudsgrad|primær drift|driftsresultat|EBIT|indtjening/i,
+  aoh: /kapitalbinding|aktiver|investeret kapital/i,
+  ekf: /egenkapitalens forrentning|forrentning af egenkapital|årets resultat|overskud/i,
+  r: /rente|finansielle omkostninger|finansiering/i,
+  gearing: /gæld|lån|finansiering|kredit/i,
+  bm: /bruttomargin|bruttoavance|avance|dækningsgrad|priser|prisstigning|råvare|indkøb|fragt/i,
+  indeks: /omsætning|salg|vækst|markedsandel|efterspørgsel/i,
+  dg: /omkostning|personale|medarbejder|lønninger/i,
+  robusthed: /omkostning|nulpunkt|følsom|risiko/i,
+  anlaeg: /investering|anlæg|fabrik|maskine|bygning|udvikling/i,
+  arbejdskapital: /lager|varebeholdning|debitor|tilgodehavende|kredittid|leverandør/i,
+  cf: /pengestrøm|likvid|cash/i,
+  sol: /egenkapital|udbytte|soliditet|kapitalforhold|tilbagekøb/i,
+  anlaegsgrad: /investering|anlæg/i,
+  kapbind: /langfristet|finansiering|lån/i,
+  likviditet: /likvid|kassekredit|bank|kreditfacilitet|finansiering/i,
+  eps: /aktie|udbytte/i,
+  marked: /aktie|kurs|marked/i,
+  indre: /aktie|egenkapital/i,
+};
+
+/** Op til to sætninger fra beretningen, der handler om nøgletallet – helst med tal. */
+function citater(beretning, id) {
+  const re = NOEGLEORD[id];
+  if (!beretning || !re) return [];
+  return beretning
+    // Ny sætning kun, når næste ord begynder med stort – så "8 mio. kr." ikke deles.
+    .split(/(?<=[.!?])\s+(?=[A-ZÆØÅ»«"])|\n+/)
+    .map(x => x.trim())
+    .filter(x => x.length >= 30 && x.length <= 400 && re.test(x))
+    .sort((a, b) => /\d/.test(b) - /\d/.test(a))
+    .slice(0, 2);
 }
 
 /* ====================== Trappen pr. nøgletal og gruppe ====================== */
@@ -464,6 +549,11 @@ const SKRIV = {
       t2.push(`I ${ctx.aar[2]} var pengestrømmen fra primær drift ${fmtBeloeb(v2.pengestroemPrimaerDrift, ctx.enh)} mod et resultat af primær drift på ${fmtBeloeb(v2.resultatPrimaerDrift, ctx.enh)}.`);
     if (ak(v0) != null && ak(v2) != null)
       t2.push(`Arbejdskapitalen (varelager + debitorer − leverandørgæld) gik fra ${fmtBeloeb(ak(v0), ctx.enh)} til ${fmtBeloeb(ak(v2), ctx.enh)}. ${ak(v2) > ak(v0) ? "Når arbejdskapitalen vokser, bindes en del af overskuddet, før det bliver til penge." : "Når arbejdskapitalen falder, frigøres penge ud over resultatet."}`);
+    const betalt = ctx.udbytte[2]?.betalt;
+    if (betalt != null && v2.pengestroemPrimaerDrift != null)
+      t2.push(v2.pengestroemPrimaerDrift > 0
+        ? `I ${ctx.aar[2]} blev der betalt ${fmtBeloeb(betalt, ctx.enh)} i udbytte, svarende til ${fmtPct((betalt / v2.pengestroemPrimaerDrift) * 100)} af pengestrømmen fra driften.`
+        : `I ${ctx.aar[2]} blev der betalt ${fmtBeloeb(betalt, ctx.enh)} i udbytte, selv om driften ikke skabte penge – udbyttet er altså finansieret af likvider eller gæld.`);
     if (og[0] != null && cf[0] != null && og[2] > og[0] && cf[2] < cf[0] - 0.5)
       faldgrube(ctx, "paastand-uden-tal",
         "Overskudsgraden er steget, mens pengestrømmen fra driften i procent af omsætningen er faldet. Studerende nøjes med resultatopgørelsen.",
@@ -494,9 +584,13 @@ const SKRIV = {
     const resultater = ctx.V.slice(1).map(v => v.aaretsResultat);
     if (v0.egenkapital != null && v2.egenkapital != null && resultater.every(x => x != null)) {
       const dEK = v2.egenkapital - v0.egenkapital, sumRes = resultater[0] + resultater[1];
+      const kendt = ctx.udbytte.some(u => u?.foreslaaet != null || u?.betalt != null);
       t2.push(`Egenkapitalen ${dEK >= 0 ? "voksede" : "faldt"} ${fmtBeloeb(Math.abs(dEK), ctx.enh)} fra ${ctx.aar[0]} til ${ctx.aar[2]}, mens årets resultat i ${ctx.aar[1]} og ${ctx.aar[2]} var ${fmtBeloeb(sumRes, ctx.enh)} i alt.` +
-        (Math.abs(sumRes - dEK) > Math.abs(sumRes) * 0.05 ? ` Forskellen på ${fmtBeloeb(sumRes - dEK, ctx.enh)} er typisk udbytte til ejerne.` : " Overskuddet er altså stort set blevet i virksomheden."));
+        (Math.abs(sumRes - dEK) <= Math.abs(sumRes) * 0.05
+          ? " Overskuddet er altså stort set blevet i virksomheden."
+          : kendt ? ` Forskellen på ${fmtBeloeb(sumRes - dEK, ctx.enh)} skyldes især udbyttet til ejerne.` : ` Forskellen på ${fmtBeloeb(sumRes - dEK, ctx.enh)} er typisk udbytte til ejerne.`));
     }
+    t2.push(...udbytteSaetninger(ctx));
     const gEK = vaekst(v0.egenkapital, v2.egenkapital);
     if (s[0] != null && s[2] < s[0] && vaesentlig(20, s[0], s[2]) && gEK > 0)
       faldgrube(ctx, "noegletal-misforstaaet",
@@ -506,7 +600,7 @@ const SKRIV = {
     return {
       trin1: trin1(ctx, [20]),
       trin2: t2,
-      trin3: [tommelfinger(ctx, 20), sidsteAar(ctx, 20), profilSaetning(ctx, "sol")],
+      trin3: [tommelfinger(ctx, 20), sidsteAar(ctx, 20), efterUdbytte(ctx), profilSaetning(ctx, "sol")],
     };
   },
 
@@ -654,6 +748,15 @@ function konkluder(ctx) {
   }
   if (lg1 != null && lg1 < 100 && !DETAILHANDEL.includes(profil?.id))
     svagheder.push(`Likviditetsgrad I er ${fmtPct(lg1)} – under tommelfingerreglen på 100 %.`);
+  const udb = ctx.udbytte[2]?.foreslaaet, res = ctx.V[2]?.aaretsResultat;
+  if (udb != null && res != null) {
+    if (udb > res) {
+      svagheder.push(`Udbyttet for ${ctx.aar[2]} (${fmtBeloeb(udb, ctx.enh)}) er større end årets resultat (${fmtBeloeb(res, ctx.enh)}), så egenkapitalen tappes.`);
+      anbefalinger.push("Tilpas udbyttet til indtjeningen, så egenkapitalen ikke udhules.");
+    } else if ((sol != null && sol < 30) || (cf[2] != null && cf[2] < 0)) {
+      anbefalinger.push(`Overvej et lavere udbytte end de foreslåede ${fmtBeloeb(udb, ctx.enh)}, så kapitalen bliver i virksomheden, indtil ${sol != null && sol < 30 ? "soliditeten" : "pengestrømmen"} er genoprettet.`);
+    }
+  }
 
   const afvigelser = [];
   if (profil)
@@ -689,6 +792,12 @@ function konkluder(ctx) {
       : `Nøgletallene ligger på linje med en typisk ${profil.navn.toLowerCase()}.`] : []),
     anbefalinger.length ? `Anbefaling til ledelsen: ${anbefalinger.join(" ")}` : "Anbefaling til ledelsen: fasthold modellen, og følg især de nøgletal, der har bevæget sig mest.",
   ];
+
+  if (ctx.beretning)
+    faldgrube(ctx, "beretning-ukritisk",
+      "Studerende gengiver ledelsens forklaringer som kendsgerninger.",
+      "Hvad siger ledelsen – og bekræfter nøgletallene det? Hvad nævner beretningen ikke?",
+      "Ledelsens forklaring er en påstand, der skal holdes op mod tallene. Se citaterne fra beretningen ved hvert nøgletal.");
 
   faldgrube(ctx, "forretningsmodel-ubrugt",
     "Trin 4 bliver en opsummering af nøgletallene uden kobling til, hvordan virksomheden tjener penge.",

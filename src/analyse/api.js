@@ -36,6 +36,7 @@ export function skrivGruppe(a, oid, g, kode) {
     trin1: g.trin1.join("\n"),
     trin2: g.trin2.join("\n"),
     trin3: g.trin3.join("\n"),
+    beretning: (g.beretning || []).join("\n"),
   }, kode);
 }
 
@@ -57,5 +58,6 @@ export function skrivKonklusion(a, prosa, kode) {
     anbefalinger: k.anbefalinger.join("\n"),
     afvigelser: k.afvigelser.join("\n"),
     udkast: k.udkast.join(" "),
+    beretning: a.beretning || "",
   }, kode);
 }

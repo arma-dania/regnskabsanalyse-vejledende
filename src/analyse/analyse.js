@@ -14,7 +14,7 @@
 // i nøgletalstabellen eller i regnskabet i analyseform.
 
 import { OMRAADER, NT, regnCase, formatNt, formatAendring, formatGraense, fmtPct, fmtPpU, fmtX, fmtBeloeb } from "./beregning.js";
-import { BESTEMT, stort, konstater, vaesentlig, verbum, dage } from "./tekst.js";
+import { BESTEMT, stort, konstater, vaesentlig, verbum, dage, aendringsprocent, fmtAendringsprocent } from "./tekst.js";
 import { TOMMELFINGERREGLER, MARKEDSRENTE_FORSLAG, MARKEDSRENTE_NAVN, findProfil, PROFILNOEGLE, modProfil } from "./maalestok.js";
 import { TEMANAVN } from "./temaer.js";
 import { GRUPPER } from "./grupper.js";
@@ -78,6 +78,8 @@ export function analyser(kase, noegletal = null) {
         nr, navn: NT[nr].navn, vaerdier: serie(nr),
         tekst: serie(nr).map(x => formatNt(nr, x, ctx.enh)),
         aendring: [formatAendring(nr, serie(nr)[0], serie(nr)[1]), formatAendring(nr, serie(nr)[1], serie(nr)[2])],
+        // Fra første til sidste år – som "Ændring i %" i nøgletalsappen.
+        pct: fmtAendringsprocent(aendringsprocent(serie(nr))) || "–",
       })),
     };
   }

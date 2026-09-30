@@ -182,3 +182,13 @@ test("den samlede konklusion står, også uden forretningsmodel og profil", () =
   assert.match(t, /Soliditetsgraden/);
   assert.doesNotMatch(t, /forretningsmodellen/);
 });
+
+test("tabellerne viser ændring i % som nøgletalsappen", () => {
+  const d = somDataset();
+  const { kase, noegletal } = fraDataset(d);
+  const a = analyser(kase, noegletal);
+  const deres = beregnAlle(d);
+  const r = a.omraader.rentabilitet.tabel.find(x => x.nr === 1);
+  const pct = procentvisAendring(deres, 1);
+  assert.equal(r.pct, (pct > 0 ? "+" : "−") + new Intl.NumberFormat("da-DK", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(pct)) + " %");
+});

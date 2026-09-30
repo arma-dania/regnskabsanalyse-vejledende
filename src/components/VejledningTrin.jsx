@@ -72,10 +72,10 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
               </div>
             )}
             <table className="data smal">
-              <thead><tr><th>Nøgletal</th>{a.aar.map(y => <th key={y} className="num">{y}</th>)}</tr></thead>
+              <thead><tr><th>Nøgletal</th>{a.aar.map(y => <th key={y} className="num">{y}</th>)}<th className="num">Ændring i %</th></tr></thead>
               <tbody>
                 {om.tabel.filter(r => r.vaerdier.some(x => x != null)).map(r => (
-                  <tr key={r.nr}><td>{r.nr}. {r.navn}</td>{r.tekst.map((t, i) => <td key={i} className="num">{t}</td>)}</tr>
+                  <tr key={r.nr}><td>{r.nr}. {r.navn}</td>{r.tekst.map((t, i) => <td key={i} className="num">{t}</td>)}<td className="num">{r.pct}</td></tr>
                 ))}
               </tbody>
             </table>

@@ -154,7 +154,7 @@ Deploy igen, når de er sat.
 | Variabel | Værdi |
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Nøglen fra console.anthropic.com |
-| `ADGANGSKODE` | Din kode til Claude-delen. Kun denne app bruger den; værdien må gerne være den samme som din underviserkode i de andre apps |
+| `ADGANGSKODE` | Valgfri. Sitet er låst med Netlifys adgangsbeskyttelse, som også dækker serverfunktionen. Sættes variablen, skal koden desuden indtastes, før Claude skriver – brug det, hvis sitet åbnes for andre |
 
 Uden dem virker alt andet, og Word-dokumenterne bruger motorens egne sætninger.
 Modellen er Claude Opus 5.5 med effort `low` (`netlify/functions/lib/claude.mjs`).

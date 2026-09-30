@@ -1,7 +1,8 @@
 // POST /.netlify/functions/skriv – lader Claude formulere motorens fund som prosa.
 //
-// Kun du bruger appen, så adgangen er én kode i miljøvariablen ADGANGSKODE.
-// Uden den kan enhver med adressen bruge din API-nøgle.
+// Sitet er låst med Netlifys adgangsbeskyttelse, og den gælder også
+// serverfunktionerne. Er miljøvariablen ADGANGSKODE sat, kræves den desuden –
+// brug det, hvis sitet en dag åbnes, så ingen kan bruge din API-nøgle.
 
 import { createHash, timingSafeEqual } from "node:crypto";
 import { spoergJson, Opsaetningsfejl, ClaudeFejl } from "./lib/claude.mjs";
@@ -13,7 +14,7 @@ const json = (data, status = 200) =>
 const hash = s => createHash("sha256").update(String(s)).digest();
 
 export function kodeOk(givet, rigtig = process.env.ADGANGSKODE) {
-  if (!rigtig) throw new Opsaetningsfejl("ADGANGSKODE er ikke sat i Netlify (Environment variables). Sæt den, og deploy igen.");
+  if (!rigtig) return true;
   return timingSafeEqual(hash(givet ?? ""), hash(rigtig));
 }
 

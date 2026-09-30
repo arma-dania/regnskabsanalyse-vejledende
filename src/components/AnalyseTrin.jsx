@@ -201,8 +201,8 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet, vis, s
       await fn()
     } catch (x) {
       setFejl(x.message)
-      // Forkert kode: spørg igen.
-      if (/401|adgangskode/i.test(x.message)) setSpoerg(true)
+      // Kræver serverfunktionen en adgangskode (ADGANGSKODE sat i Netlify), spørges der.
+      if (/Forkert adgangskode/.test(x.message)) setSpoerg(true)
     } finally { setTravl('') }
   }
   const skrivAlt = () => koer(async () => {
@@ -223,20 +223,17 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet, vis, s
   const skrivKonklusionen = () => koer(async () => setProsa(await skrivKonk(gemt)))
   const travlNavn = travl === 'konklusion' ? 'konklusionen' : analyse.omraader[travl] ? `delkonklusionen for ${analyse.omraader[travl].navn.toLowerCase()}` : alleGrupper(analyse).find(x => x.gruppe.id === travl)?.gruppe.titel.toLowerCase()
 
-  // Claudes prosa: vis den, der er skrevet – ellers skriv den (og spørg
-  // først om adgangskoden, hvis den ikke kendes).
+  // Claudes prosa: vis den, der er skrevet – ellers skriv den.
   function visClaude () {
     setVis(true)
-    if (harProsa || travl) return
-    if (kodeRef.current) skrivAlt()
-    else setSpoerg(true)
+    if (!harProsa && !travl) skrivAlt()
   }
   function brugKode (e) {
     e.preventDefault()
     gemKode(kode); kodeRef.current = kode; setSpoerg(false)
     skrivAlt()
   }
-  const kanSkrive = vis && !!kodeRef.current && !spoerg && !travl
+  const kanSkrive = vis && !spoerg && !travl
 
   return (
     <>
@@ -254,7 +251,7 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet, vis, s
               {travl ? `Skriver ${travlNavn} …` : 'Claudes prosa'}
             </button>
           </div>
-          {vis && !travl && (harProsa || foraeldet) && <button className="knap lys" onClick={() => (kodeRef.current ? skrivAlt() : setSpoerg(true))}>Skriv prosaen igen</button>}
+          {vis && !travl && (harProsa || foraeldet) && <button className="knap lys" onClick={skrivAlt}>Skriv prosaen igen</button>}
         </div>
         {vis && spoerg && (
           <form className="knap-raekke" onSubmit={brugKode}>

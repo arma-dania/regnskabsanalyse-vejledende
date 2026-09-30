@@ -11,25 +11,27 @@
 //   23-24  Forskellen er kun varelageret – og den forskel er selv en pointe.
 //   26+28  Markedets pris målt mod et regnskabstal; samme forklaring og målestok.
 //
-// AG, OG og AOH står hver for sig: de forklares i hvert sit område, og AG's
-// trappe henviser til de to andre i stedet for at gentage dem.
+// AG, OG og AOH står hver for sig. OG åbner indtjeningsevnen og AOH
+// kapitaltilpasningen; AG's trappe henviser frem til dem.
 
 export const GRUPPER = {
   rentabilitet: [
     { id: "ag", nrs: [1] },
-    { id: "og", nrs: [2] },
-    { id: "aoh", nrs: [3] },
     { id: "ekf", nrs: [4] },
     { id: "r", nrs: [5] },
     { id: "gearing", nrs: [6] },
   ],
+  // Overskudsgraden indleder indtjeningsevnen, og aktivernes
+  // omsætningshastighed indleder kapitaltilpasningen.
   indtjeningsevne: [
+    { id: "og", nrs: [2] },
     { id: "bm", nrs: [7] },
     { id: "indeks", nrs: [8] },
     { id: "dg", nrs: [9] },
     { id: "robusthed", titel: "Robustheden: kapacitetsgrad, nulpunktsomsætning og sikkerhedsmargin", nrs: [10, 11, 12] },
   ],
   kapital: [
+    { id: "aoh", nrs: [3] },
     { id: "anlaeg", titel: "Anlægsaktivernes omsætningshastigheder", nrs: [13, 14, 15] },
     { id: "arbejdskapital", titel: "Arbejdskapitalen: varelager, debitorer og kreditorer", nrs: [16, 17, 18] },
     { id: "cf", nrs: [19] },

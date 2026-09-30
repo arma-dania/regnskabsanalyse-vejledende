@@ -308,7 +308,7 @@ function Omraade ({ a, id, prosa, saet, kanSkrive, skriv }) {
                 {prosa[g.id]
                   ? <Prosa tekst={prosa[g.id][`trin${t.nr}`]} saet={saet} a={a} />
                   : g[`trin${t.nr}`].map((x, i) => <p key={i}>{x}</p>)}
-                {t.nr === 2 && g.beretning.length > 0 && (
+                {t.nr === 2 && g.beretning?.length > 0 && (
                   <blockquote className="citat">
                     <span className="citat-kilde">Ledelsesberetningen:</span>
                     {g.beretning.map((c, i) => <span key={i}> »{c}«</span>)}
@@ -316,6 +316,14 @@ function Omraade ({ a, id, prosa, saet, kanSkrive, skriv }) {
                 )}
               </div>
             ))}
+            {(prosa[g.id]?.delkonklusion || g.delkonklusion) && (
+              <div className="delkonklusion">
+                <span className="delkonklusion-titel">Delkonklusion</span>
+                {prosa[g.id]?.delkonklusion
+                  ? <Prosa tekst={prosa[g.id].delkonklusion} saet={saet} a={a} />
+                  : <p>{g.delkonklusion}</p>}
+              </div>
+            )}
           </div>
         ))}
     </section>

@@ -77,6 +77,8 @@ export function besvarelseDok(a, prosa = {}) {
         if (tekst.trim()) dele.push(fed(`Trin ${t.nr} – ${t.navn}: `, tekst.replace(/\n+/g, " ")));
         if (t.nr === 2 && g.beretning?.length) dele.push(citat(g.beretning));
       }
+      const dk = prosa?.grupper?.[g.id]?.delkonklusion || g.delkonklusion;
+      if (dk) dele.push(fed("Delkonklusion: ", dk));
     }
   }
   dele.push(h("Samlet konklusion – Trin 4 Forretningsmodellen", HeadingLevel.HEADING_1));
@@ -122,6 +124,7 @@ export function vejledningDok(a, prosa = {}) {
     for (const g of om.grupper) {
       dele.push(h(g.titel, HeadingLevel.HEADING_2));
       if (g.noegle.length) dele.push(fed("Det skal de finde (trin 1): ", ""), ...g.noegle.map(punkt));
+      if (g.delkonklusion) dele.push(fed("Delkonklusion: ", prosa?.grupper?.[g.id]?.delkonklusion || g.delkonklusion));
       if (g.trin2.length) dele.push(fed("Forklaringen (trin 2): ", ""), ...g.trin2.map(punkt));
       if (g.beretning?.length) dele.push(citat(g.beretning));
       if (g.trin3.length) dele.push(fed("Målestokkene (trin 3): ", ""), ...g.trin3.map(punkt));

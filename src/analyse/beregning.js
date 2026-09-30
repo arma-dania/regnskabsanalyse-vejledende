@@ -9,10 +9,13 @@
 
 import { medAfledte } from "./poster.js";
 
+// Overskudsgraden (2) indleder indtjeningsevnen, og aktivernes
+// omsætningshastighed (3) indleder kapitaltilpasningen: de to områder
+// forklarer hver sin faktor i afkastningsgraden.
 export const OMRAADER = [
-  { id: "rentabilitet", navn: "Rentabilitetsanalyse", nrs: [1, 2, 3, 4, 5, 6] },
-  { id: "indtjeningsevne", navn: "Indtjeningsevne", nrs: [7, 8, 9, 10, 11, 12] },
-  { id: "kapital", navn: "Kapitaltilpasning og pengestrømme", nrs: [13, 14, 15, 16, 17, 18, 19] },
+  { id: "rentabilitet", navn: "Rentabilitetsanalyse", nrs: [1, 4, 5, 6] },
+  { id: "indtjeningsevne", navn: "Indtjeningsevne", nrs: [2, 7, 8, 9, 10, 11, 12] },
+  { id: "kapital", navn: "Kapitaltilpasning og pengestrømme", nrs: [3, 13, 14, 15, 16, 17, 18, 19] },
   { id: "soliditet", navn: "Soliditet og likviditet", nrs: [20, 21, 22, 23, 24] },
   { id: "boers", navn: "Børsrelaterede nøgletal", nrs: [25, 26, 27, 28] },
 ];

@@ -9,7 +9,7 @@ import { analyser } from "../src/analyse/analyse.js";
 import { medAfledte, balanceKontrol } from "../src/analyse/poster.js";
 import { fraDataset } from "../src/analyse/fraDataset.js";
 import { emptyDataset } from "../src/lib/model.js";
-import { beregnAlle } from "../src/lib/nogletal.js";
+import { beregnAlle, procentvisAendring } from "../src/lib/nogletal.js";
 import { tjekTal } from "../src/analyse/tjek.js";
 
 const naer = (a, b, tol = 1e-9) => assert.ok(Math.abs(a - b) < tol, `${a} ≠ ${b}`);
@@ -133,4 +133,32 @@ test("motorens egen regning stemmer med nøgletalsappens", () => {
   for (let i = 0; i < 3; i++)
     for (const nr of [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24])
       naer(egne[i].n[nr], deres[i][nr].value, 1e-6);
+});
+
+test("overskudsgraden indleder indtjeningsevnen, og omsætningshastigheden kapitaltilpasningen", () => {
+  const a = analyser(EKSEMPEL);
+  assert.equal(a.omraader.indtjeningsevne.grupper[0].id, "og");
+  assert.equal(a.omraader.kapital.grupper[0].id, "aoh");
+  assert.equal(a.omraader.indtjeningsevne.tabel[0].nr, 2);
+  assert.equal(a.omraader.kapital.tabel[0].nr, 3);
+  assert.ok(!a.omraader.rentabilitet.grupper.some(g => ["og", "aoh"].includes(g.id)));
+});
+
+test("konstateringen bruger nøgletalsappens ændringsprocent", () => {
+  const d = somDataset();
+  const { kase, noegletal } = fraDataset(d);
+  const a = analyser(kase, noegletal);
+  const deres = beregnAlle(d);
+  const pct = procentvisAendring(deres, 2);
+  const forventet = (pct > 0 ? "+" : "−") + new Intl.NumberFormat("da-DK", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(pct)) + " %";
+  const og = a.omraader.indtjeningsevne.grupper.find(g => g.id === "og");
+  assert.ok(og.trin1[0].includes(`ændring 2023–2025: ${forventet}`), og.trin1[0]);
+});
+
+test("hvert nøgletal og hver gruppe har en delkonklusion", () => {
+  const a = analyser(EKSEMPEL);
+  for (const o of Object.values(a.omraader))
+    for (const g of o.grupper) assert.ok(g.delkonklusion.length > 20, g.id);
+  const ag = a.omraader.rentabilitet.grupper.find(g => g.id === "ag");
+  assert.match(ag.delkonklusion, /forringet.*overskudsgraden.*markedsrenten/s);
 });

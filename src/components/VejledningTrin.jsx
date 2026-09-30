@@ -54,6 +54,7 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
                 <div key={g.id} className="noegletal-trappe">
                   <h4>{g.titel}</h4>
                   <p className="hjaelp"><strong>Det skal de finde:</strong> {g.noegle.join(' · ')}</p>
+                  {g.delkonklusion && <p><strong>Delkonklusion:</strong> {prosa.grupper?.[g.id]?.delkonklusion || g.delkonklusion}</p>}
                   <details>
                     <summary>Forklaring og målestok (trin 2 og 3)</summary>
                     <ul>{[...g.trin2, ...g.trin3].map((s, i) => <li key={i}>{s}</li>)}</ul>

@@ -36,6 +36,7 @@ export function skrivGruppe(a, oid, g, kode) {
     trin1: g.trin1.join("\n"),
     trin2: g.trin2.join("\n"),
     trin3: g.trin3.join("\n"),
+    delkonklusion: g.delkonklusion || "",
     beretning: (g.beretning || []).join("\n"),
   }, kode);
 }
@@ -50,7 +51,7 @@ export function skrivKonklusion(a, prosa, kode) {
       const om = a.omraader[o.id];
       return `${om.navn}:\n` + om.grupper.map(g => {
         const x = prosa.grupper?.[g.id];
-        return `${g.titel}: ` + [1, 2, 3].map(n => x?.[`trin${n}`] || g[`trin${n}`].join(" ")).join(" ");
+        return `${g.titel} – delkonklusion: ${x?.delkonklusion || g.delkonklusion}`;
       }).join("\n");
     }).join("\n\n"),
     styrker: k.styrker.join("\n"),

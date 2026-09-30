@@ -18,14 +18,14 @@ const REGLER = `Regler:
 
 const ramme = s => `<<<\n${String(s ?? "").slice(0, 12000)}\n>>>`;
 
-export function gruppePrompt({ virksomhed, omraade, titel, tabel, trin1, trin2, trin3, beretning }) {
+export function gruppePrompt({ virksomhed, omraade, titel, tabel, trin1, trin2, trin3, delkonklusion, beretning }) {
   return `Du skriver en del af en vejledende besvarelse til en regnskabsanalyse. En underviser bruger den som facit, når holdet gennemgår opgaven, så den skal være fagligt korrekt og følge formuleringstrappen tydeligt.
 
 ${TRAPPE}
 
 ${REGLER}
 
-Omskriv fundene for nøgletallet (eller nøgletalsgruppen) til tre korte afsnit – ét pr. trin (1, 2 og 3). Hvert afsnit 1-4 sætninger. Trin 1 må ikke indeholde årsager eller vurderinger; trin 2 ikke vurderinger. I en gruppe skal trin 1 nævne hvert nøgletal i gruppen.
+Omskriv fundene for nøgletallet (eller nøgletalsgruppen) til tre korte afsnit – ét pr. trin (1, 2 og 3) – og en delkonklusion. Hvert afsnit 1-4 sætninger. Trin 1 skal nævne ændringsprocenten fra første til sidste år, som den står i fundene, og må ikke indeholde årsager eller vurderinger; trin 2 ikke vurderinger. I en gruppe skal trin 1 nævne hvert nøgletal i gruppen. Delkonklusionen samler trappen i 1-2 sætninger: hvad er sket, hvorfor, og er det godt eller skidt målt mod målestokkene.
 
 Virksomhed: ${ramme(virksomhed)}
 Analyseområde: ${ramme(omraade)}
@@ -34,13 +34,14 @@ Nøgletallene: ${ramme(tabel)}
 Fund, trin 1: ${ramme(trin1)}
 Fund, trin 2: ${ramme(trin2)}
 Fund, trin 3: ${ramme(trin3)}
+Motorens delkonklusion: ${ramme(delkonklusion)}
 Uddrag af ledelsesberetningen om dette nøgletal: ${ramme(beretning || "(intet)")}`;
 }
 
 export const GRUPPESKEMA = {
   type: "object",
-  properties: { trin1: { type: "string" }, trin2: { type: "string" }, trin3: { type: "string" } },
-  required: ["trin1", "trin2", "trin3"],
+  properties: { trin1: { type: "string" }, trin2: { type: "string" }, trin3: { type: "string" }, delkonklusion: { type: "string" } },
+  required: ["trin1", "trin2", "trin3", "delkonklusion"],
   additionalProperties: false,
 };
 
@@ -51,7 +52,7 @@ ${TRAPPE}
 
 ${REGLER}
 
-Skriv trin 4 som 2-3 afsnit: bind nøgletallene fra de fem analyseområder sammen, hold dem op mod forretningsmodellen (holder den, presses den, eller skifter den?), og slut med en konkret anbefaling til ledelsen, der følger af tallene. Gentag ikke hele analysen – træk de tråde frem, der betyder noget for forretningsmodellen.
+Skriv trin 4 som 2-3 afsnit: bind delkonklusionerne fra de fem analyseområder sammen, hold dem op mod forretningsmodellen (holder den, presses den, eller skifter den?), og slut med en konkret anbefaling til ledelsen, der følger af tallene. Gentag ikke hele analysen – træk de tråde frem, der betyder noget for forretningsmodellen.
 
 Skriv også en kort "fortælling" på 2-3 sætninger til underviseren: det store billede, holdet skal ende med at se.
 

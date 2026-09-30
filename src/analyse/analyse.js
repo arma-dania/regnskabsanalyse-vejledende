@@ -57,6 +57,7 @@ export function analyser(kase, noegletal = null) {
           id: g.id, nrs: g.nrs,
           titel: g.titel || NT[g.nrs[0]].navn,
           trin1: ren(t.trin1), trin2: ren(t.trin2), trin3: ren(t.trin3),
+          delkonklusion: ren([DELKONKLUSION[g.id]?.(ctx)])[0] || "",
           noegle: [
             ...g.nrs.filter(nr => serie(nr)[2] != null).map(nr => `${NT[nr].navn}: ${serie(nr).map(x => formatNt(nr, x, ctx.enh)).join(" → ")}`),
             ...(g.id === "sol" && ctx.udbytte.some(u => u?.foreslaaet != null) ? [`Udbytte for året: ${ctx.udbytte.map(u => fmtBeloeb(u?.foreslaaet, ctx.enh)).join(" → ")}`] : []),
@@ -284,8 +285,8 @@ const SKRIV = {
     if (d && vaesentlig(1, s[0], s[2])) {
       const driver = Math.abs(d.og) >= Math.abs(d.aoh) ? "og" : "aoh";
       t2.push(driver === "og"
-        ? "Udviklingen kommer primært fra overskudsgraden – altså fra indtjeningen på hver omsat krone. Hvorfor overskudsgraden har udviklet sig sådan, forklares under overskudsgraden og indtjeningsevnen."
-        : "Udviklingen kommer primært fra omsætningshastigheden – altså fra, hvor effektivt kapitalen udnyttes. Hvorfor, forklares under omsætningshastigheden og kapitaltilpasningen.");
+        ? "Udviklingen kommer primært fra overskudsgraden – altså fra indtjeningen på hver omsat krone. Hvorfor, forklares under indtjeningsevnen, som begynder med overskudsgraden."
+        : "Udviklingen kommer primært fra omsætningshastigheden – altså fra, hvor effektivt kapitalen udnyttes. Hvorfor, forklares under kapitaltilpasningen, som begynder med omsætningshastigheden.");
       const mindre = driver === "og" ? d.aoh : d.og;
       if (Math.sign(mindre) === Math.sign(d.og + d.aoh) && Math.abs(mindre) >= Math.abs(d.og + d.aoh) / 4)
         faldgrube(ctx, "sammenhaeng-ubrugt",
@@ -318,7 +319,7 @@ const SKRIV = {
       trin2: [
         saetning(postUdv(ctx, "resultatPrimaerDrift", "resultatet af primær drift"), postUdv(ctx, "omsaetning", "omsætningen")),
         ko0 != null && ko2 != null && nt(ctx, 7)
-          ? `Overskudsgraden er bruttomarginen fratrukket kapacitetsomkostningerne i procent af omsætningen: ${nt(ctx, 7)}, og kapacitetsomkostningerne gik fra ${fmtPct(ko0)} til ${fmtPct(ko2)} af omsætningen. Hvorfor, undersøges under indtjeningsevnen.`
+          ? `Overskudsgraden er bruttomarginen fratrukket kapacitetsomkostningerne i procent af omsætningen: ${nt(ctx, 7)}, og kapacitetsomkostningerne gik fra ${fmtPct(ko0)} til ${fmtPct(ko2)} af omsætningen. Bruttomarginen og kapacitetsomkostningerne gennemgås nedenfor.`
           : null,
       ],
       trin3: [sidsteAar(ctx, 2), profilSaetning(ctx, "og")],
@@ -336,7 +337,7 @@ const SKRIV = {
       trin2: [
         saetning(postUdv(ctx, "omsaetning", "omsætningen"), udv("de gennemsnitlige aktiver", gA0, gA2)),
         poster.length && Math.abs(poster[0].d) >= 1
-          ? `Pr. 100 kr. omsætning er den største ændring i ${NAVN[poster[0].k]}: fra ${fmtX(poster[0].a, 0)} til ${fmtX(poster[0].b, 0)} kr. (ultimo). Hvorfor, undersøges under kapitaltilpasningen.`
+          ? `Pr. 100 kr. omsætning er den største ændring i ${NAVN[poster[0].k]}: fra ${fmtX(poster[0].a, 0)} til ${fmtX(poster[0].b, 0)} kr. (ultimo). Anlæggene og arbejdskapitalen gennemgås nedenfor.`
           : null,
       ],
       trin3: [sidsteAar(ctx, 3), profilSaetning(ctx, "aoh")],
@@ -703,6 +704,155 @@ const SKRIV = {
     };
   },
 };
+
+/* ====================== Delkonklusioner ====================== */
+
+// Én til to sætninger pr. nøgletal eller gruppe, der samler trappen: hvad er
+// sket, hvorfor, og er det godt eller skidt? Delkonklusionerne er byggestenene
+// til den samlede konklusion.
+
+/** "forbedret" / "forringet" / "stabil" – eller "steget" / "faldet" for neutrale nøgletal. */
+function bevaegelse(ctx, nr) {
+  const s = ctx.serie(nr);
+  if (s[0] == null || s[2] == null) return null;
+  if (!vaesentlig(nr, s[0], s[2])) return "stabil";
+  if (NT[nr].bedre === "neutral") return s[2] > s[0] ? "steget" : "faldet";
+  return (s[2] > s[0]) === (NT[nr].bedre === "op") ? "forbedret" : "forringet";
+}
+
+const v = (ctx, nr, i = 2) => formatNt(nr, ctx.serie(nr)[i], ctx.enh);
+const fraTil = (ctx, nr) => `fra ${v(ctx, nr, 0)} til ${v(ctx, nr)}`;
+const er = (ctx, nr, navn) => {
+  const b = bevaegelse(ctx, nr);
+  if (!b) return null;
+  return b === "stabil" ? `${navn} er stort set uændret over perioden (${v(ctx, nr, 0)} → ${v(ctx, nr)})` : `${navn} er ${b} ${fraTil(ctx, nr)}`;
+};
+
+const DELKONKLUSION = {
+  ag(ctx) {
+    const d = agDrivere(ctx), ag = ctx.sidst(1), mr = ctx.rente[2];
+    if (ag == null) return null;
+    const hvorfor = d && bevaegelse(ctx, 1) !== "stabil"
+      ? (Math.abs(d.og) >= Math.abs(d.aoh) ? ", primært på grund af overskudsgraden" : ", primært på grund af aktivernes omsætningshastighed")
+      : "";
+    return `${er(ctx, 1, "Afkastningsgraden")}${hvorfor}. Driften forrenter kapitalen ${ag >= mr ? `${fmtPpU(ag - mr)} bedre end` : `${fmtPpU(ag - mr)} dårligere end`} markedsrenten, hvilket er ${ag >= mr + 2 ? "tilfredsstillende" : ag >= mr ? "et beskedent merafkast" : "ikke tilfredsstillende"}.`;
+  },
+  ekf(ctx) {
+    const ekf = ctx.sidst(4), ag = ctx.sidst(1), r = ctx.sidst(5), mr = ctx.rente[2];
+    if (ekf == null) return null;
+    const gearing = ag != null && r != null ? (ag >= r ? " Gearingen løfter forrentningen, fordi afkastningsgraden ligger over lånerenten." : " Gearingen trækker forrentningen ned, fordi afkastningsgraden ligger under lånerenten.") : "";
+    return `${er(ctx, 4, "Egenkapitalens forrentning")}, og ejerne får ${ekf >= mr ? `${fmtPpU(ekf - mr)} mere` : `${fmtPpU(ekf - mr)} mindre`} end markedsrenten.${gearing}`;
+  },
+  r(ctx) {
+    const r = ctx.sidst(5), mr = ctx.rente[2];
+    if (r == null) return null;
+    return `${er(ctx, 5, "Fremmedkapitalens forrentning")} og ligger ${r >= mr ? "over" : "under"} markedsrenten; den reelle lånerente er højere, fordi en del af gælden er rentefri.`;
+  },
+  gearing(ctx) {
+    const ag = ctx.sidst(1), r = ctx.sidst(5);
+    if (ctx.sidst(6) == null) return null;
+    return `${er(ctx, 6, "Den finansielle gearing")}. ${ag != null && r != null ? (ag >= r ? "Den er en fordel for ejerne, så længe afkastningsgraden ligger over lånerenten, men mindsker bufferen mod tab." : "Den er en ulempe, fordi afkastningsgraden ligger under lånerenten.") : ""}`.trim();
+  },
+  og(ctx) {
+    const [ko0, ko2] = mellemPer(ctx, "koAndel");
+    const bm = ctx.serie(7);
+    if (ctx.sidst(2) == null) return null;
+    let hvorfor = "";
+    if (bm[0] != null && ko0 != null && bevaegelse(ctx, 2) !== "stabil")
+      hvorfor = Math.abs(bm[2] - bm[0]) >= Math.abs(ko2 - ko0)
+        ? `, primært fordi bruttomarginen er ${bm[2] > bm[0] ? "steget" : "faldet"}`
+        : `, primært fordi kapacitetsomkostningerne ${ko2 > ko0 ? "fylder mere" : "fylder mindre"} i forhold til omsætningen`;
+    const p = profilDom(ctx, "og");
+    return `${er(ctx, 2, "Overskudsgraden")}${hvorfor}.${p ? ` Den ligger ${p} for forretningsmodellen.` : ""}`;
+  },
+  bm(ctx) {
+    if (ctx.sidst(7) == null) return null;
+    const p = profilDom(ctx, "bm");
+    const g = vaekst(ctx.V[0].bruttoresultat, ctx.V[2].bruttoresultat), o = vaekst(ctx.V[0].omsaetning, ctx.V[2].omsaetning);
+    const hvorfor = g != null && o != null && bevaegelse(ctx, 7) !== "stabil"
+      ? `, fordi bruttoresultatet er vokset ${g > o ? "hurtigere" : "langsommere"} end omsætningen`
+      : "";
+    return `${er(ctx, 7, "Bruttomarginen")}${hvorfor}.${p ? ` Den ligger ${p} for forretningsmodellen.` : ""}`;
+  },
+  indeks(ctx) {
+    const ix = ctx.M[2].indeks;
+    if (ix.omsaetning == null) return null;
+    const rentabel = ix.resultatPrimaerDrift == null ? null : ix.resultatPrimaerDrift >= ix.omsaetning - 5;
+    return `Omsætningen står i indeks ${fmtX(ix.omsaetning, 0)}${rentabel == null ? "." : rentabel ? ", og væksten er rentabel." : `, men resultatet af primær drift kun i indeks ${fmtX(ix.resultatPrimaerDrift, 0)} – væksten er ikke rentabel.`}`;
+  },
+  dg(ctx) {
+    const dg = ctx.sidst(9);
+    if (dg == null) return null;
+    return `${er(ctx, 9, "Den driftsmæssige gearing")}; med ${dg >= 40 ? "en høj" : "en lav"} andel faste omkostninger er resultatet ${dg >= 40 ? "følsomt" : "forholdsvis robust"} over for fald i omsætningen.`;
+  },
+  robusthed(ctx) {
+    const sm = ctx.sidst(12);
+    if (sm == null) return null;
+    return `Robustheden er ${bevaegelse(ctx, 12) === "stabil" ? "uændret" : bevaegelse(ctx, 12)}: omsætningen kan falde ${fmtPct(sm)}, før driften giver underskud${ctx.serie(12)[0] != null ? `, mod ${fmtPct(ctx.serie(12)[0])} i ${ctx.aar[0]}` : ""}.`;
+  },
+  aoh(ctx) {
+    if (ctx.sidst(3) == null) return null;
+    const b0 = ctx.M[0].binding, b2 = ctx.M[2].binding;
+    const NAVN = { anlaeg: "anlægsaktiverne", varelager: "varelageret", debitorer: "debitorerne" };
+    const stoerst = Object.keys(NAVN).filter(k => b0[k] != null && b2[k] != null).sort((a, b) => Math.abs(b2[b] - b0[b]) - Math.abs(b2[a] - b0[a]))[0];
+    const p = profilDom(ctx, "aoh");
+    return `${er(ctx, 3, "Aktivernes omsætningshastighed")}${stoerst && bevaegelse(ctx, 3) !== "stabil" ? `, især på grund af kapitalbindingen i ${NAVN[stoerst]}` : ""}.${p ? ` Den ligger ${p} for forretningsmodellen.` : ""}`;
+  },
+  anlaeg(ctx) {
+    if (ctx.sidst(13) == null) return null;
+    const b = bevaegelse(ctx, 13);
+    return `Anlæggene udnyttes ${b === "forbedret" ? "bedre" : b === "forringet" ? "dårligere" : "stort set som før"}: hver krone i anlægsaktiver giver ${v(ctx, 13)} kr. i omsætning mod ${v(ctx, 13, 0)} kr. i ${ctx.aar[0]}.`;
+  },
+  arbejdskapital(ctx) {
+    const l = ctx.serie(16), d = ctx.serie(17), k = ctx.serie(18);
+    const netto = i => (l[i] && d[i] && k[i] ? dage(l[i]) + dage(d[i]) - dage(k[i]) : null);
+    if (netto(2) == null) return `${er(ctx, 16, "Varelagerets omsætningshastighed") || er(ctx, 17, "Varedebitorernes omsætningshastighed") || ""}.`;
+    const n0 = netto(0), n2 = netto(2);
+    return `Pengene er bundet i driften i ${n2} dage${n0 != null ? ` mod ${n0} dage i ${ctx.aar[0]}` : ""}. ${n0 == null || Math.abs(n2 - n0) < 3 ? "Kapitaltilpasningen er stort set uændret." : n2 > n0 ? "Kapitalen er dårligere tilpasset aktiviteten, og det skal finansieres." : "Kapitalen er bedre tilpasset aktiviteten, og det frigør penge."}`;
+  },
+  cf(ctx) {
+    const cf = ctx.sidst(19), og = ctx.sidst(2);
+    if (cf == null) return null;
+    return `${er(ctx, 19, "Pengestrømmen fra driften i procent af omsætningen")}. ${cf < 0 ? "Driften skaber ikke penge – et faresignal." : og != null && cf < og - 1 ? "Kun en del af overskuddet bliver til penge." : "Overskuddet bliver til penge."}`;
+  },
+  sol(ctx) {
+    const sol = ctx.sidst(20);
+    if (sol == null) return null;
+    const u = ctx.udbytte[2]?.foreslaaet;
+    return `${er(ctx, 20, "Soliditetsgraden")} og ligger ${sol >= 30 ? "over" : "under"} tommelfingerreglen på 30 %.${u != null ? ` Det foreslåede udbytte på ${fmtBeloeb(u, ctx.enh)} svækker den yderligere, når det udbetales.` : ""}`;
+  },
+  anlaegsgrad(ctx) {
+    if (ctx.sidst(21) == null) return null;
+    const b = bevaegelse(ctx, 21);
+    const p = profilDom(ctx, "al");
+    return `Balancen er blevet ${b === "steget" ? "tungere" : b === "faldet" ? "lettere" : "hverken tungere eller lettere"} (anlægsgrad ${v(ctx, 21)}).${p ? ` Anlægsgraden ligger ${p} for forretningsmodellen.` : ""}`;
+  },
+  kapbind(ctx) {
+    const kb = ctx.sidst(22);
+    if (kb == null) return null;
+    return `Anlægsaktiverne er ${kb <= 1 ? "fuldt finansieret med langfristet kapital" : "delvist finansieret med kortfristet gæld"} (kapitalbindingsgrad ${v(ctx, 22)}), hvilket ${kb <= 1 ? "er betryggende" : "giver en refinansieringsrisiko"}.`;
+  },
+  likviditet(ctx) {
+    const lg1 = ctx.sidst(23), lg2 = ctx.sidst(24);
+    if (lg1 == null && lg2 == null) return null;
+    const detail = DETAILHANDEL.includes(ctx.profil?.id);
+    return `${er(ctx, 23, "Likviditetsgrad I") || er(ctx, 24, "Likviditetsgrad II")}. ${lg1 != null && lg1 < 100 ? (detail ? "Den er under 100 %, men det er normalt for forretningsmodellen." : "Den kortfristede gæld kan ikke dækkes uden at sælge af lageret.") : "Den kortfristede gæld kan dækkes af de mest likvide aktiver."}`;
+  },
+  eps(ctx) { return ctx.sidst(25) == null ? null : `${er(ctx, 25, "Resultatet pr. aktie")}.`; },
+  marked(ctx) {
+    const ki = ctx.sidst(28);
+    return ki == null ? null : `Markedet værdsætter virksomheden ${ki > 1 ? "højere" : "lavere"} end den bogførte egenkapital (kurs/indre værdi ${v(ctx, 28)}).`;
+  },
+  indre(ctx) { return ctx.sidst(27) == null ? null : `${er(ctx, 27, "Den indre værdi pr. aktie")}.`; },
+};
+
+/** "på linje med det normale" / "under det normale" / "over det normale". */
+function profilDom(ctx, noegle) {
+  const p = ctx.profil;
+  if (!p) return null;
+  const m = modProfil(ctx.sidst(PROFILNOEGLE[noegle]), p.v[noegle]);
+  return m == null ? null : m === "på linje" ? "på linje med det normale" : m === "lavere" ? "under det normale" : "over det normale";
+}
 
 /* ====================== Konklusionen (trin 4-udkast) ====================== */
 

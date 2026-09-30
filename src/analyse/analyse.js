@@ -83,12 +83,13 @@ export function analyser(kase, noegletal = null) {
   }
   ctx.gruppe = { omraade: "konklusion", gruppe: "konklusion" };
   const konklusion = konkluder(ctx);
+  const pointer = vejledningsPointer(ctx, omraader);
 
   return {
     navn: kase.navn || "Virksomheden",
     aar, enhed: ctx.enh, rente, profil: ctx.profil,
     forretningsmodel: kase.forretningsmodel || "",
-    beregnet, omraader, konklusion,
+    beregnet, omraader, konklusion, pointer,
     faldgruber: ctx.faldgruber,
     beretning: ctx.beretning,
     brugCitater: ctx.brugCitater,
@@ -940,6 +941,66 @@ function samletKonklusion(ctx, navn) {
     [DELKONKLUSION.ekf(ctx)].filter(Boolean).join(" "),
     [DELKONKLUSION.sol(ctx), DELKONKLUSION.kapbind(ctx), DELKONKLUSION.likviditet(ctx), ctx.sidst(19) != null ? DELKONKLUSION.cf(ctx) : null].filter(Boolean).join(" "),
   ].filter(Boolean));
+}
+
+/* ====================== Underviservejledningen ====================== */
+
+// Til underviseren: de vigtigste pointer og sammenhænge i hvert område – og
+// kæden, der binder områderne sammen. Kun tal fra analysen; ingen profil.
+
+const pil = (ctx, nr) => {
+  const b = bevaegelse(ctx, nr);
+  return b === "stabil" ? "→" : ctx.serie(nr)[2] > ctx.serie(nr)[0] ? "↑" : "↓";
+};
+
+function vejledningsPointer(ctx, omraader) {
+  const utenProfil = t => (t || "").replace(/\s*(Den|Anlægsgraden) ligger [^.]* for forretningsmodellen\./g, "");
+  const har = nr => ctx.sidst(nr) != null && ctx.serie(nr)[0] != null;
+  const ag = ctx.sidst(1), ekf = ctx.sidst(4), r = ctx.sidst(5), g = ctx.sidst(6), mr = ctx.rente[2];
+
+  // Kæden: AG = OG × AOH → EKF (gearing) → soliditet → likviditet.
+  const led = [
+    [1, "Afkastningsgrad"], [2, "Overskudsgrad"], [3, "Aktivernes omsætningshastighed"],
+    [4, "Egenkapitalens forrentning"], [20, "Soliditetsgrad"], [23, "Likviditetsgrad I"],
+  ].filter(([nr]) => har(nr)).map(([nr, navn]) => ({
+    nr, navn, fra: v(ctx, nr, 0), til: v(ctx, nr), pil: pil(ctx, nr), bevaegelse: bevaegelse(ctx, nr),
+  }));
+
+  const d = agDrivere(ctx);
+  const driver = d ? (Math.abs(d.og) >= Math.abs(d.aoh) ? "overskudsgraden" : "aktivernes omsætningshastighed") : null;
+  const [ko0, ko2] = mellemPer(ctx, "koAndel");
+  const bm = ctx.serie(7);
+  const lager = ctx.serie(16), deb = ctx.serie(17), kred = ctx.serie(18);
+  const netto = i => (lager[i] && deb[i] && kred[i] ? dage(lager[i]) + dage(deb[i]) - dage(kred[i]) : null);
+  const ekSaetning = omraader.soliditet?.grupper.find(x => x.id === "sol")?.trin2.find(t => /^Egenkapitalen (faldt|voksede) .* i alt\./.test(t));
+
+  const sammenhaenge = {
+    rentabilitet: [
+      har(1) && har(2) && har(3) ? `AG = OG × AOH: ${nt(ctx, 2)}, og ${nt(ctx, 3)}.${driver && bevaegelse(ctx, 1) !== "stabil" ? ` Det er især ${driver}, der har flyttet afkastningsgraden.` : ""}` : null,
+      ag != null ? `Mod markedsrenten (${fmtPct(mr)}): driften forrenter kapitalen ${fmtPpU(ag - mr)} ${ag >= mr ? "bedre" : "dårligere"} end en risikofri placering.` : null,
+      ekf != null && ag != null && r != null ? `EKF (${fmtPct(ekf)}) ligger ${ekf >= ag ? "over" : "under"} AG (${fmtPct(ag)}), fordi AG er ${ag >= r ? "højere" : "lavere"} end fremmedkapitalens forrentning (${fmtPct(r)})${g != null ? `; med en gearing på ${fmtX(g)} ${ag >= r ? "løfter" : "trækker"} lånt kapital ejernes forrentning ${ag >= r ? "op" : "ned"}` : ""}.` : null,
+    ],
+    indtjeningsevne: [
+      har(2) && bm[0] != null && ko0 != null ? `OG = bruttomargin − kapacitetsomkostninger i % af omsætningen: bruttomarginen ${fraTil(ctx, 7)}, kapacitetsomkostningerne fra ${fmtPct(ko0)} til ${fmtPct(ko2)}. ${Math.abs(bm[2] - bm[0]) >= Math.abs(ko2 - ko0) ? "Bruttomarginen" : "Kapacitetsomkostningerne"} forklarer mest af udviklingen i overskudsgraden.` : null,
+      DELKONKLUSION.indeks(ctx),
+      [DELKONKLUSION.robusthed(ctx), har(9) ? `Den driftsmæssige gearing er ${v(ctx, 9)}.` : null].filter(Boolean).join(" ") || null,
+    ],
+    kapital: [
+      har(3) ? utenProfil(DELKONKLUSION.aoh(ctx)) : null,
+      netto(2) != null ? `Arbejdskapitalen: lager ${dage(lager[2])} + debitorer ${dage(deb[2])} − kreditorer ${dage(kred[2])} = ${netto(2)} dage${netto(0) != null ? ` (${netto(0)} dage i ${ctx.aar[0]})` : ""}. ${netto(0) != null && netto(2) > netto(0) + 2 ? "Den længere binding trækker AOH ned og skal finansieres." : netto(0) != null && netto(2) < netto(0) - 2 ? "Den kortere binding trækker AOH op og frigør penge." : ""}`.trim() : null,
+      har(19) ? DELKONKLUSION.cf(ctx) : null,
+    ],
+    soliditet: [
+      ekSaetning || null,
+      har(20) ? DELKONKLUSION.sol(ctx) : null,
+      har(23) || har(24) ? DELKONKLUSION.likviditet(ctx) : null,
+      netto(0) != null && netto(2) > netto(0) + 2 && har(23) && bevaegelse(ctx, 23) === "forringet" ? "Likviditeten hænger sammen med kapitaltilpasningen: mere kapital bundet i lager og debitorer binder de likvide midler." : null,
+    ],
+    boers: [DELKONKLUSION.eps(ctx), DELKONKLUSION.marked(ctx)],
+  };
+  const ud = {};
+  for (const [id, liste] of Object.entries(sammenhaenge)) ud[id] = ren(liste.filter(Boolean));
+  return { kaede: led, sammenhaenge: ud };
 }
 
 /** "på linje med det normale" / "under det normale" / "over det normale". */

@@ -440,6 +440,8 @@ function formatAarListe (labels) {
 // til én, i stedet for at gentages ordret for hvert enkelt år.
 export function validate (dataset) {
   const raa = []
+  const vf = visningsfaktor(dataset)
+  const vis = n => `${new Intl.NumberFormat('da-DK', { maximumFractionDigits: /mio/.test(dataset.enhed || '') ? 1 : 0 }).format(n * vf)} ${dataset.enhed || 'kr.'}`
   dataset.aar.forEach((y, i) => {
     const v = withDerived(y.values)
     const label = y.label || `År ${i + 1}`
@@ -447,13 +449,21 @@ export function validate (dataset) {
     if (v.aktiverIAlt != null && v.passiverIAlt != null && !near(v.aktiverIAlt, v.passiverIAlt)) {
       raa.push({ level: 'error', year: label, text: `Balancen stemmer ikke: aktiver ${fmt(v.aktiverIAlt)} mod passiver ${fmt(v.passiverIAlt)}.` })
     }
-    // Analyseformens resultat skal give regnskabets eget. Gør det ikke, er en
-    // post i resultatopgørelsen uden plads i analyseformen – og så er
-    // egenkapitalens forrentning og resultat pr. aktie forkerte.
-    for (const [k, navn] of [['aaretsResultat', 'Årets resultat'], ['resultatFoerSkat', 'Resultat før skat']]) {
+    // Posterne skal give regnskabets eget resultat. Gør de ikke, har en post
+    // i resultatopgørelsen ikke fået en plads i analyseformen – og så regnes
+    // nøgletallene af et forkert resultat. Posten navngives med sit beløb.
+    for (const [k, navn] of [['aaretsResultat', 'årets resultat'], ['resultatFoerSkat', 'resultat før skat']]) {
       const rap = y.rapporteret?.[k]
       if (rap == null || v[k] == null || near(rap, v[k])) continue
-      raa.push({ level: 'error', year: label, text: `${navn} er ${fmt(rap)} kr. i regnskabet, men ${fmt(v[k])} kr. i analyseformen. En post i resultatopgørelsen (fx andre driftsindtægter eller indtægter af kapitalandele) har ikke fået en plads i analyseformen, så nøgletallene bliver forkerte. Læg posten sammen med den post, den hører til.` })
+      const map = postMap(dataset)
+      const uplacerede = synligePoster(dataset, 'resultat')
+        .filter(p => !p.erSum && !rolle(dataset, p, map))
+        .map(p => ({ navn: postNavn(dataset, p), tal: postTal(dataset, p, y.poster || {}, map) }))
+        .filter(x => x.tal != null && x.tal !== 0)
+      const hvilke = uplacerede.length
+        ? `Det skyldes, at ${uplacerede.map(x => `»${x.navn}« (${vis(x.tal)})`).join(' og ')} endnu ikke har fået en plads. Læg ${uplacerede.length === 1 ? 'posten' : 'posterne'} sammen med den post, ${uplacerede.length === 1 ? 'den' : 'de'} hører til.`
+        : 'En post i resultatopgørelsen har ikke fået en plads i analyseformen. Læg den sammen med den post, den hører til.'
+      raa.push({ level: 'error', year: label, text: `Posterne giver ${navn} på ${vis(v[k])}, men regnskabets egen linje er ${vis(rap).replace(/\.$/, '')}. Nøgletallene regnes af det første tal og bliver derfor forkerte. ${hvilke}` })
       break
     }
     if (v.kapacitetsomkostninger != null && v.kapacitetsomkostninger < 0) {

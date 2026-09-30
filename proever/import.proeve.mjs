@@ -72,5 +72,5 @@ const ds = anvendFordeling(tom, fordelKolonner(docs));
 assert.equal(withDerived(ds.aar[2].values).aaretsResultat, 30300000);
 const nt = beregnAlle(ds);
 assert.deepEqual(nt.map(r => r[4].value.toFixed(1)), ["18.5", "20.5", "18.4"]);
-assert.equal(validate(ds).filter(x => /analyseformen/.test(x.text)).length, 0);
+assert.equal(validate(ds).filter(x => /regnskabets egen linje/.test(x.text)).length, 0);
 });

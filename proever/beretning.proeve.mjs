@@ -52,6 +52,30 @@ const parseDanskTal = t => {
   return Number.isFinite(n) ? (neg ? -n : n) : null;
 };
 
+test("ekstraordinært udbytte som hos Gasa: foreslået for 2024, betalt i 2025", () => {
+  // 2025-rapporten: besluttet efter 2024's udgang (= foreslået for 2024), betalt
+  // i 2025, og en fejlmærket saldo "foreslået … i egenkapitalen" pr. 31.12.2025.
+  const ud = udbytteFraFakta([
+    { begreb: "ExtraordinaryDividendPaid", dato: "2025-12-31", vaerdi: 80e6 },
+    { begreb: "ProposedExtraordinaryDividendRecognisedInEquity", dato: "2025-12-31", vaerdi: 80e6 },
+    { begreb: "ProposedExtraordinaryDividendRecognisedInEquity", dato: "2024-12-31", vaerdi: 0 },
+    { begreb: "ExtraordinaryDividendDistributedAfterEndOfReportingPeriodGross", dato: "2025-12-31", vaerdi: 0 },
+    { begreb: "ExtraordinaryDividendDistributedAfterEndOfReportingPeriodGross", dato: "2024-12-31", vaerdi: 80e6 },
+  ]);
+  assert.equal(ud["2024"].foreslaaet, 80e6);
+  assert.equal(ud["2024"].betalt, undefined);
+  assert.equal(ud["2025"].betalt, 80e6);
+  assert.equal(ud["2025"].foreslaaet, 0, "saldoen i egenkapitalen overtager ikke");
+});
+
+test("ordinært og ekstraordinært udbytte lægges sammen", () => {
+  const ud = udbytteFraFakta([
+    { begreb: "ProposedDividend", dato: "2025-12-31", vaerdi: 10e6 },
+    { begreb: "ProposedExtraordinaryDividend", dato: "2025-12-31", vaerdi: 5e6 },
+  ]);
+  assert.equal(ud["2025"].foreslaaet, 15e6);
+});
+
 test("udbytte fra PDF-linjer", () => {
   const ud = udbytteFraLinjer(["Foreslået udbytte 80.000 60.000", "Betalt udbytte 12 (60.000) (50.000)"], ["2025", "2024"], parseDanskTal);
   assert.equal(ud["2025"].foreslaaet, 80000);

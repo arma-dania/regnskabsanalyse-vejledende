@@ -53,18 +53,45 @@ const IKKE_UDBYTTE = /PerShare|Income|Received|Receivable|Payable|FromGroup|From
  * Udbytte pr. år ud fra XBRL-fakta: { "2025": { foreslaaet, betalt } }.
  * Foreslået udbytte hører til regnskabsåret (udbetales året efter); betalt
  * udbytte er det, der gik ud af kassen i året.
+ *
+ * Begreberne har forskellig vægt:
+ * - "…DistributedAfterEndOfReportingPeriod…" er udbytte besluttet efter
+ *   årets udgang for dét år – altså foreslået, ikke betalt, selv om ordet
+ *   "Distributed" indgår.
+ * - "…RecognisedInEquity" er en saldo i egenkapitalen og bruges kun, når
+ *   intet andet begreb siger noget om året; den er ofte fejlmærket.
+ * - Ordinært og ekstraordinært udbytte lægges sammen. Et 0 tæller med, så
+ *   et svagere begreb (eller en tabelrække) ikke overtager; analysen læser 0
+ *   som intet udbytte.
  */
+function udbytteArt (begreb) {
+  if (/DistributedAfter|Proposed|Declared/i.test(begreb)) return { art: 'foreslaaet', vaegt: /RecognisedInEquity/i.test(begreb) ? 1 : 2 }
+  if (/Paid|Distribut|Payment/i.test(begreb)) return { art: 'betalt', vaegt: 2 }
+  return null
+}
+
 export function udbytteFraFakta (fakta) {
-  const ud = {}
+  // aar → art → { vaegt, begreber: Map(begreb → værdi) }
+  const fund = {}
   for (const f of fakta) {
     if (!/Dividend/i.test(f.begreb) || IKKE_UDBYTTE.test(f.begreb)) continue
-    // Foreslået først: IFRS-begrebet for foreslået udbytte indeholder også
-    // "Distribution" (…NotRecognisedAsDistributionToOwners).
-    const art = /Proposed|Declared/i.test(f.begreb) ? 'foreslaaet' : /Paid|Distribut|Payment/i.test(f.begreb) ? 'betalt' : null
-    if (!art) continue
+    const a = udbytteArt(f.begreb)
+    if (!a) continue
     const aar = f.dato.slice(0, 4)
-    ud[aar] ??= {}
-    ud[aar][art] ??= Math.abs(f.vaerdi)
+    fund[aar] ??= {}
+    const nu = fund[aar][a.art]
+    if (nu && nu.vaegt > a.vaegt) continue
+    if (!nu || a.vaegt > nu.vaegt) fund[aar][a.art] = { vaegt: a.vaegt, begreber: new Map() }
+    const b = fund[aar][a.art].begreber
+    if (!b.has(f.begreb)) b.set(f.begreb, Math.abs(f.vaerdi))
+  }
+  const ud = {}
+  for (const [aar, arter] of Object.entries(fund)) {
+    for (const [art, { begreber }] of Object.entries(arter)) {
+      const sum = [...begreber.values()].reduce((x, y) => x + y, 0)
+      ud[aar] ??= {}
+      ud[aar][art] = sum
+    }
   }
   return ud
 }

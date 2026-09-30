@@ -28,7 +28,7 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
 
       <section className="kort">
         <h3>Det store billede</h3>
-        <p>{prosa.konklusion?.fortaelling || k.udkast[0]}</p>
+        <p>{prosa.konklusion?.fortaelling || k.samlet[0] || k.udkast[0]}</p>
         <div className="to-spalter">
           <div><h4>Styrker</h4><ul>{k.styrker.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
           <div><h4>Svagheder</h4><ul>{k.svagheder.map((s, i) => <li key={i}>{s}</li>)}</ul></div>

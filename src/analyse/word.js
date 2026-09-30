@@ -85,7 +85,10 @@ export function besvarelseBoern(a, prosa = {}) {
     const dk = prosa?.omraader?.[o.id]?.delkonklusion || om.delkonklusion;
     if (dk) dele.push(fed(`Delkonklusion – ${om.navn.toLowerCase()}: `, dk.replace(/\n+/g, " ")));
   }
-  dele.push(h("Samlet konklusion – Trin 4 Forretningsmodellen", HeadingLevel.HEADING_1));
+  dele.push(h("Samlet konklusion", HeadingLevel.HEADING_1));
+  const samlet = prosa.konklusion?.samlet || a.konklusion.samlet.join("\n");
+  for (const afsnit of samlet.split(/\n+/)) if (afsnit.trim()) dele.push(p(afsnit.trim()));
+  dele.push(h("Trin 4 – Forretningsmodellen", HeadingLevel.HEADING_1));
   const t4 = prosa.konklusion?.trin4 || a.konklusion.udkast.join(" ");
   for (const afsnit of t4.split(/\n+/)) if (afsnit.trim()) dele.push(p(afsnit.trim()));
 
@@ -106,7 +109,7 @@ export function vejledningBoern(a, prosa = {}) {
     ...forudsaetninger(a),
 
     h("Det store billede", HeadingLevel.HEADING_1),
-    p(prosa.konklusion?.fortaelling || k.udkast[0]),
+    p(prosa.konklusion?.fortaelling || k.samlet[0] || k.udkast[0]),
     ...(k.styrker.length ? [fed("Styrker: ", ""), ...k.styrker.map(punkt)] : []),
     ...(k.svagheder.length ? [fed("Svagheder: ", ""), ...k.svagheder.map(punkt)] : []),
 

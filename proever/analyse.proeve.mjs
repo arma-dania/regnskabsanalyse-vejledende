@@ -171,3 +171,14 @@ test("kun én delkonklusion pr. analyseområde", () => {
   assert.match(a.omraader.indtjeningsevne.delkonklusion, /^Overskudsgraden er/);
   assert.match(a.omraader.kapital.delkonklusion, /^Aktivernes omsætningshastighed er/);
 });
+
+test("den samlede konklusion står, også uden forretningsmodel og profil", () => {
+  const a = analyser({ ...EKSEMPEL, profil: "", forretningsmodel: "" });
+  assert.equal(a.profil, null);
+  assert.ok(a.konklusion.samlet.length >= 2);
+  const t = a.konklusion.samlet.join(" ");
+  assert.match(t, /^Samlet set er udviklingen i .* fra 2023 til 2025 (positiv|negativ|blandet|stabil)/);
+  assert.match(t, /Overskudsgraden/);
+  assert.match(t, /Soliditetsgraden/);
+  assert.doesNotMatch(t, /forretningsmodellen/);
+});

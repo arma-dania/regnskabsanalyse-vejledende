@@ -277,7 +277,15 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet }) {
       ))}
 
       <section className="kort">
-        <h3>Samlet konklusion – Trin 4 Forretningsmodellen</h3>
+        <h3>Samlet konklusion</h3>
+        <p className="hjaelp">På tværs af de fem analyseområder, målt mod sidste år, markedsrenten og tommelfingerreglerne.</p>
+        {brug.konklusion?.samlet
+          ? <Prosa tekst={brug.konklusion.samlet} saet={saet} a={analyse} />
+          : analyse.konklusion.samlet.map((s, i) => <p key={i}>{s}</p>)}
+      </section>
+
+      <section className="kort">
+        <h3>Trin 4 – Forretningsmodellen</h3>
         <p className="trin-spm">{TRIN[3].spoergsmaal}</p>
         {brug.konklusion
           ? <Prosa tekst={brug.konklusion.trin4} saet={saet} a={analyse} />

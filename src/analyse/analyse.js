@@ -155,6 +155,32 @@ function indeksBetydning(key, hurtigere) {
   return m ? (hurtigere ? m[1] : m[2]) : "";
 }
 
+// Pengecyklussen: lagerdage + debitordage − kreditordage. Den siger, hvor
+// længe pengene er bundet, fra leverandøren er betalt, til kunden betaler.
+// Negativ: leverandørerne betales først efter kunderne – de finansierer driften.
+function cyklus(ctx, i) {
+  const l = ctx.serie(16)[i], d = ctx.serie(17)[i], k = ctx.serie(18)[i];
+  if (!l || !d || !k) return null;
+  const x = { lager: dage(l), deb: dage(d), kred: dage(k) };
+  return { ...x, netto: x.lager + x.deb - x.kred };
+}
+const regnestykke = c => `${c.lager} lagerdage + ${c.deb} debitordage − ${c.kred} kreditordage = ${c.netto} dage`;
+function cyklusBetydning(n) {
+  if (n < 0) return `Tallet er negativt: leverandørerne betales først ${-n} dage efter, at kunderne har betalt, så det er leverandørerne, der finansierer lager og debitorer.`;
+  if (n === 0) return "Leverandørkreditten dækker præcis den tid, pengene står i lager og debitorer.";
+  return `Der går ${n} dage, fra leverandørerne er betalt, til pengene kommer ind fra kunderne – den tid skal finansieres.`;
+}
+function cyklusAendring(n0, n2) {
+  const d = Math.abs(n2 - n0);
+  if (d < 3) return "Det er stort set uændret over perioden.";
+  if (n2 > n0) return n2 <= 0
+    ? `Fordelen er blevet ${d} dage mindre, så driften frigør færre penge end før.`
+    : `Bindingen er blevet ${d} dage længere, så en større del af overskuddet står i lager og debitorer i stedet for i kassen.`;
+  return n0 <= 0
+    ? `Fordelen er blevet ${d} dage større, så driften frigør flere penge end før.`
+    : `Bindingen er blevet ${d} dage kortere, så der frigøres penge ud over overskuddet.`;
+}
+
 /** Sætter delsætninger sammen: "a, mens b." */
 const saetning = (...dele) => {
   const d = dele.filter(Boolean);
@@ -587,7 +613,7 @@ const SKRIV = {
     const netto = i => (lager[i] && deb[i] && kred[i] ? dage(lager[i]) + dage(deb[i]) - dage(kred[i]) : null);
     const t1 = trin1(ctx, [16, 17, 18]);
     if (netto(2) != null)
-      t1.push(`Omregnet til dage i ${ctx.aar[2]}: lageret ligger i ${dage(lager[2])} dage, kunderne betaler efter ${dage(deb[2])} dage, og leverandørerne betales efter ${dage(kred[2])} dage. Pengene er dermed bundet i ${netto(2)} dage${netto(0) != null ? ` (${netto(0)} dage i ${ctx.aar[0]})` : ""}.`);
+      t1.push(`Omregnet til dage i ${ctx.aar[2]}: lageret ligger i ${dage(lager[2])} dage, kunderne betaler efter ${dage(deb[2])} dage, og leverandørerne betales efter ${dage(kred[2])} dage. Pengecyklussen er dermed ${regnestykke(cyklus(ctx, 2))}${netto(0) != null ? ` (${netto(0)} dage i ${ctx.aar[0]})` : ""}. ${cyklusBetydning(netto(2))}`);
     const t2 = [
       saetning(postUdv(ctx, "varelager", "varelageret"), postUdv(ctx, "vareforbrug", "vareforbruget")),
       saetning(postUdv(ctx, "varedebitorer", "varedebitorerne"), postUdv(ctx, "omsaetning", "omsætningen")),
@@ -596,7 +622,7 @@ const SKRIV = {
     if (netto(0) != null && netto(2) != null && netto(2) !== netto(0)) {
       const dele = [["lageret", dage(lager[2]) - dage(lager[0])], ["debitorerne", dage(deb[2]) - dage(deb[0])], ["leverandørkreditten", dage(kred[0]) - dage(kred[2])]]
         .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
-      t2.push(`Bindingen er blevet ${netto(2) > netto(0) ? "længere" : "kortere"} med ${Math.abs(netto(2) - netto(0))} dage, især på grund af ${dele[0][0]} (${dele[0][1] > 0 ? "+" : "−"}${Math.abs(dele[0][1])} dage).`);
+      t2.push(`Pengecyklussen er blevet ${netto(2) > netto(0) ? "længere" : "kortere"} med ${Math.abs(netto(2) - netto(0))} dage, især på grund af ${dele[0][0]} (${dele[0][1] > 0 ? "+" : "−"}${Math.abs(dele[0][1])} dage).`);
     }
     // Lager og debitorer står i aktiverne; leverandørgælden gør ikke.
     const aktivdage = i => (lager[i] && deb[i] ? dage(lager[i]) + dage(deb[i]) : null);
@@ -887,7 +913,7 @@ const DELKONKLUSION = {
     const netto = i => (l[i] && d[i] && k[i] ? dage(l[i]) + dage(d[i]) - dage(k[i]) : null);
     if (netto(2) == null) return `${er(ctx, 16, "Varelagerets omsætningshastighed") || er(ctx, 17, "Varedebitorernes omsætningshastighed") || ""}.`;
     const n0 = netto(0), n2 = netto(2);
-    return `Pengene er bundet i driften i ${n2} dage${n0 != null ? ` mod ${n0} dage i ${ctx.aar[0]}` : ""}. ${n0 == null || Math.abs(n2 - n0) < 3 ? "Kapitaltilpasningen er stort set uændret." : n2 > n0 ? "Kapitalen er dårligere tilpasset aktiviteten, og det skal finansieres." : "Kapitalen er bedre tilpasset aktiviteten, og det frigør penge."}`;
+    return `Pengecyklussen (lagerdage + debitordage − kreditordage) er ${n2} dage${n0 != null ? ` mod ${n0} dage i ${ctx.aar[0]}` : ""}. ${cyklusBetydning(n2)}${n0 != null ? ` ${cyklusAendring(n0, n2)}` : ""}`;
   },
   cf(ctx) {
     const cf = ctx.sidst(19), og = ctx.sidst(2);
@@ -1019,7 +1045,7 @@ function vejledningsPointer(ctx, omraader) {
   const betalt = ctx.udbytte.slice(1).map(u => u?.betalt || 0).reduce((x, y) => x + y, 0);
   const foreslaaet = ctx.udbytte.slice(0, 2).map(u => u?.foreslaaet || 0).reduce((x, y) => x + y, 0);
   const udbLed = betalt || foreslaaet ? { navn: betalt ? "Udbytte betalt i perioden" : "Udbytte foreslået i perioden", fra: "", til: fmtBeloeb(betalt || foreslaaet, ctx.enh), pil: "", farve: "" } : null;
-  const dageLed = netto(0) != null && netto(2) != null ? { navn: "Pengene bundet i driften", fra: `${netto(0)} dage`, til: `${netto(2)} dage`, pil: Math.abs(netto(2) - netto(0)) < 3 ? "→" : netto(2) > netto(0) ? "↑" : "↓", farve: Math.abs(netto(2) - netto(0)) < 3 ? "" : netto(2) > netto(0) ? "ned" : "op" } : null;
+  const dageLed = netto(0) != null && netto(2) != null ? { navn: "Pengecyklus (lager + debitorer − kreditorer)", fra: `${netto(0)} dage`, til: `${netto(2)} dage`, pil: Math.abs(netto(2) - netto(0)) < 3 ? "→" : netto(2) > netto(0) ? "↑" : "↓", farve: Math.abs(netto(2) - netto(0)) < 3 ? "" : netto(2) > netto(0) ? "ned" : "op" } : null;
 
   const kaeder = [
     {
@@ -1042,7 +1068,7 @@ function vejledningsPointer(ctx, omraader) {
       id: "likviditet", titel: "Likviditeten: bliver overskuddet til penge?",
       led: [dageLed, nt_led(19, "Pengestrøm fra driften i % af omsætningen"), nt_led(23, "Likviditetsgrad I"), nt_led(24, "Likviditetsgrad II")].filter(Boolean),
       forbindelser: [
-        netto(2) != null ? `Arbejdskapital → pengestrøm: pengene er bundet i ${netto(2)} dage${netto(0) != null ? ` mod ${netto(0)} dage i ${ctx.aar[0]}` : ""}. ${netto(0) != null && netto(2) > netto(0) + 2 ? "Når bindingen bliver længere, bliver en større del af overskuddet stående i lager og debitorer i stedet for i kassen." : netto(0) != null && netto(2) < netto(0) - 2 ? "Når bindingen bliver kortere, frigøres penge ud over overskuddet." : "Bindingen er stort set uændret."}` : null,
+        netto(2) != null ? `Arbejdskapital → pengestrøm: pengecyklussen er ${regnestykke(cyklus(ctx, 2))}${netto(0) != null ? ` mod ${netto(0)} dage i ${ctx.aar[0]}` : ""}. ${cyklusBetydning(netto(2))}${netto(0) != null ? ` ${cyklusAendring(netto(0), netto(2))}` : ""}` : null,
         har(19) ? `Pengestrøm → likviditet: ${lille(DELKONKLUSION.cf(ctx))}` : null,
         har(23) || har(24) ? `Likviditetsgraderne: ${lille(DELKONKLUSION.likviditet(ctx))}` : null,
         har(23) && har(24) && bevaegelse(ctx, 23) !== "stabil" && bevaegelse(ctx, 24) !== "stabil" && bevaegelse(ctx, 23) !== bevaegelse(ctx, 24)
@@ -1068,7 +1094,7 @@ function vejledningsPointer(ctx, omraader) {
     likviditet: ren([
       har(24) ? `${stort(nt(ctx, 24))}.` : har(23) ? `${stort(nt(ctx, 23))}.` : null,
       netto(0) != null && netto(2) != null && Math.abs(netto(2) - netto(0)) > 2
-        ? `Pengene er bundet ${netto(2) > netto(0) ? "længere" : "kortere"} i driften (${netto(0)} → ${netto(2)} dage), så ${netto(2) > netto(0) ? "en større del af overskuddet står i lager og debitorer" : "der frigøres penge ud over overskuddet"}.`
+        ? `Pengecyklussen gik fra ${netto(0)} til ${netto(2)} dage. ${cyklusAendring(netto(0), netto(2))}`
         : har(19) ? `${stort(nt(ctx, 19))}.` : null,
     ]).join(" "),
   };
@@ -1093,7 +1119,7 @@ function vejledningsPointer(ctx, omraader) {
     ],
     kapital: [
       har(3) ? utenProfil(DELKONKLUSION.aoh(ctx)) : null,
-      netto(2) != null ? `Arbejdskapitalen: lager ${dage(lager[2])} + debitorer ${dage(deb[2])} − kreditorer ${dage(kred[2])} = ${netto(2)} dage${netto(0) != null ? ` (${netto(0)} dage i ${ctx.aar[0]})` : ""}. ${netto(0) != null && netto(2) > netto(0) + 2 ? "Den længere binding trækker AOH ned og skal finansieres." : netto(0) != null && netto(2) < netto(0) - 2 ? "Den kortere binding trækker AOH op og frigør penge." : ""}`.trim() : null,
+      netto(2) != null ? `Pengecyklussen: ${regnestykke(cyklus(ctx, 2))}${netto(0) != null ? ` (${netto(0)} dage i ${ctx.aar[0]})` : ""}. ${cyklusBetydning(netto(2))} ${netto(0) != null && netto(2) > netto(0) + 2 ? "Den længere cyklus trækker AOH ned og skal finansieres." : netto(0) != null && netto(2) < netto(0) - 2 ? "Den kortere cyklus trækker AOH op og frigør penge." : ""}`.trim() : null,
       har(19) ? DELKONKLUSION.cf(ctx) : null,
     ],
     soliditet: [

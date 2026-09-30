@@ -1,0 +1,24 @@
+{
+  "name": "regnskabsanalyse-vejledende",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Vejledende besvarelse og underviservejledning til regnskabsanalyse på formuleringstrappen",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "proeve": "node --test proever/*.proeve.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
+    "docx": "^9.5.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  },
+  "engines": { "node": ">=22" }
+}

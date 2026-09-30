@@ -22,6 +22,28 @@ function sammeVirksomhed (a, b) {
 // reel fordeling (som kan være null, når intet er indlæst endnu).
 const IKKE_SAT = Symbol('ikke-sat')
 
+// Balancen stemmer, når aktiver i alt = passiver i alt i hovedåret.
+function balancenStemmer (d) {
+  const kol = d.kolonner?.[0]?.values || {}
+  const find = re => Object.entries(kol).find(([id]) => re.test(id))?.[1]
+  const a = find(/:(Assets)$/), p = find(/:(LiabilitiesAndEquity|EquityAndLiabilities)$/)
+  return a != null && p != null && Math.abs(a - p) <= Math.max(1, Math.abs(a) * 0.001)
+}
+
+/**
+ * Vælger ét dokument blandt dem, en offentliggørelse indeholder: kun
+ * dokumenter med tal og med det søgte CVR-nummer (når det står i
+ * dokumentet); blandt dem det, hvor balancen stemmer og der er flest poster.
+ */
+export function vaelgDokument (dokumenter, cvr) {
+  let kandidater = dokumenter.filter(d => d.kolonner?.length)
+  const egne = kandidater.filter(d => !d.cvr || !cvr || d.cvr === cvr)
+  if (egne.length) kandidater = egne
+  return kandidater
+    .map(d => ({ d, stemmer: balancenStemmer(d), poster: (d.poster || []).length }))
+    .sort((x, y) => (y.stemmer - x.stemmer) || (y.poster - x.poster))[0]?.d || null
+}
+
 export default function ImportPanel ({ dataset, setDataset, gaaTilTrin, fund, setFund, cvr, setCvr, traf, setTraf }) {
   const [status, setStatus] = useState(null)
   const [arbejder, setArbejder] = useState(false)
@@ -152,9 +174,12 @@ export default function ImportPanel ({ dataset, setDataset, gaaTilTrin, fund, se
         }
       }
       const flerTal = urls.length > 1
-      dokumenter.forEach((d, i) => {
-        nye.push({ ...d, cvr: d.cvr || r.cvr || null, kilde: `Årsrapport ${r.aar}` + (flerTal ? ` (dokument ${i + 1} af ${urls.length})` : '') })
-      })
+      // Én offentliggørelse kan rumme flere XBRL-dokumenter: samme regnskab
+      // i to formater, et dokument uden tal – eller et andet selskabs
+      // regnskab, fx moderselskabets koncernregnskab (ÅRL § 112). Kun ét
+      // dokument pr. årsrapport bruges.
+      const valgt = vaelgDokument(dokumenter, r.cvr)
+      if (valgt) nye.push({ ...valgt, cvr: valgt.cvr || r.cvr || null, kilde: `Årsrapport ${r.aar}` })
       const kolonneAntal = dokumenter.reduce((sum, d) => sum + d.kolonner.length, 0)
       if (dokumenter.length && !kolonneAntal) {
         const forklaringer = dokumenter.map(d => diagnostikTekst(d.diagnostik))

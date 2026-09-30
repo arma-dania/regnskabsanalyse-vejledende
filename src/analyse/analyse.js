@@ -945,7 +945,7 @@ function samletKonklusion(ctx, navn) {
   ].filter(Boolean));
 }
 
-/* ====================== Underviservejledningen ====================== */
+/* ====================== Underviseroverblikket ====================== */
 
 // Til underviseren: de vigtigste pointer og sammenhænge i hvert område – og
 // kæden, der binder områderne sammen. Kun tal fra analysen; ingen profil.
@@ -981,8 +981,10 @@ function vejledningsPointer(ctx, omraader) {
     farve: godOp == null || Math.abs(a2 - a0) <= Math.abs(a0) * 0.02 ? "" : (a2 > a0) === godOp ? "op" : "ned",
   });
   const V0 = ctx.V[0], V2 = ctx.V[2];
-  const betalt = ctx.udbytte.map(u => u?.betalt || 0).reduce((x, y) => x + y, 0);
-  const foreslaaet = ctx.udbytte.map(u => u?.foreslaaet || 0).reduce((x, y) => x + y, 0);
+  // Kun udbytte i de to år, egenkapitalens udvikling fra første til sidste
+  // år dækker; udbytte betalt i det første år ligger før perioden.
+  const betalt = ctx.udbytte.slice(1).map(u => u?.betalt || 0).reduce((x, y) => x + y, 0);
+  const foreslaaet = ctx.udbytte.slice(0, 2).map(u => u?.foreslaaet || 0).reduce((x, y) => x + y, 0);
   const udbLed = betalt || foreslaaet ? { navn: betalt ? "Udbytte betalt i perioden" : "Udbytte foreslået i perioden", fra: "", til: fmtBeloeb(betalt || foreslaaet, ctx.enh), pil: "", farve: "" } : null;
   const dageLed = netto(0) != null && netto(2) != null ? { navn: "Pengene bundet i driften", fra: `${netto(0)} dage`, til: `${netto(2)} dage`, pil: Math.abs(netto(2) - netto(0)) < 3 ? "→" : netto(2) > netto(0) ? "↑" : "↓", farve: Math.abs(netto(2) - netto(0)) < 3 ? "" : netto(2) > netto(0) ? "ned" : "op" } : null;
 

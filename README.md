@@ -4,7 +4,7 @@ En webapp, der tager tre årsregnskaber, stiller dem op i analyseform, beregner 
 inden for fem analyseområder og tegner en graf til hvert nøgletal – præcis som nøgletalsappen
 (`arma-dania/regnskaber`), som trin 0-3 er kopieret fra. Ud fra nøgletallene skriver appen
 derefter en **vejledende besvarelse** op ad formuleringstrappen (trin 4) og en
-**underviservejledning** til gennemgangen med holdet (trin 5). Begge hentes som Word.
+**underviseroverblik** til gennemgangen med holdet (trin 5). Begge hentes som Word.
 
 Appen er til underviseren: den skriver hele analysen.
 
@@ -15,7 +15,7 @@ Appen er til underviseren: den skriver hele analysen.
 | 2 Analyseform | Omform resultatopgørelsen: flyt og læg poster sammen |
 | 3 Nøgletal og grafer | De 28 nøgletal, grafer, Word og Excel |
 | 4 Vejledende besvarelse | Målestokke, trappen for hvert nøgletal og hver nøgletalsgruppe (trin 1-3), konklusionen (trin 4) |
-| 5 Underviservejledning | Det store billede, forløb, tavleskitser, faldgruber med spørgsmål og svar |
+| 5 Underviseroverblik | Det store billede, forløb, tavleskitser, faldgruber med spørgsmål og svar |
 
 ## De fem analyseområder
 
@@ -122,7 +122,7 @@ Sådan bruges de i analysen:
 - **Ledelsesberetningen** citeres ved det nøgletal, sætningen handler om, så
   ledelsens forklaring kan holdes op mod tallene. Claude får beretningen med
   og må bruge den i trin 2 – som ledelsens forklaring, ikke som facit. Tal fra
-  beretningen godkendes i taltjekket. Underviservejledningen har en faldgrube
+  beretningen godkendes i taltjekket. Underviseroverblikket har en faldgrube
   om at tage ledelsens forklaring for pålydende, og beretningen som bilag.
 
 ## Faglige valg, du bør kende
@@ -321,7 +321,7 @@ src/analyse/beregning.js   Mellemregninger og formatering
 src/analyse/maalestok.js   Markedsrente, tommelfingerregler, væsentlighed og forretningsmodeller
 src/analyse/temaer.js      Formuleringstrappen og temaerne (samme ordlyd som træningsappen)
 src/analyse/tjek.js        Taltjekket af Claudes tekst
-src/analyse/word.js        Word: vejledende besvarelse og underviservejledning
+src/analyse/word.js        Word: vejledende besvarelse og underviseroverblik
 src/components/AnalyseTrin.jsx    Trin 4
 src/components/VejledningTrin.jsx Trin 5
 netlify/functions/skriv.mjs      Claude-kaldet bag adgangskoden

@@ -45,6 +45,10 @@ export function beretningFraBegreber (afsnit) {
 
 /* ---------------------- Udbytte ---------------------- */
 
+// Udgaven af udbyttelæsningen. Regnskaber, der er indlæst med en ældre
+// udgave, har måske et forkert udbytte gemt; det bruges ikke.
+export const UDBYTTE_UDGAVE = 2
+
 // Begreber med "Dividend" i navnet, der ikke er udbytte fra virksomheden
 // (fx modtaget udbytte fra datterselskaber) eller udbytte pr. aktie.
 const IKKE_UDBYTTE = /PerShare|Income|Received|Receivable|Payable|FromGroup|FromAssociat|FromInvest|Revenue/i

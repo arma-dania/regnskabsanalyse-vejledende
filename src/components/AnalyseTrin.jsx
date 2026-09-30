@@ -138,6 +138,12 @@ function Beretning ({ dataset, setDataset, analyse, indlaest }) {
       <p className="hjaelp">
         {tekst ? `Ledelsesberetningen er indlæst (${tekst.length.toLocaleString('da-DK')} tegn).` : 'Der blev ikke fundet en ledelsesberetning i det indlæste regnskab. Indsæt den selv under "Vis og ret".'}
       </p>
+      {indlaest?.udbytteForaeldet && (
+        <div className="besked advarsel">
+          Udbyttet i de gemte regnskaber er læst med en ældre udgave af appen og bruges ikke. Indlæs regnskaberne igen
+          under trin 1, så udbyttet kommer med.
+        </div>
+      )}
       <label className="afkryds">
         <input type="checkbox" checked={a.brugCitater !== false} onChange={e => saet({ brugCitater: e.target.checked })} disabled={!tekst} />
         {' '}Brug citater fra ledelsesberetningen i analysen

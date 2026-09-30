@@ -1,5 +1,6 @@
 import { OMRAADER } from '../analyse/beregning.js'
 import { TRIN } from '../analyse/temaer.js'
+import { saetninger } from '../analyse/tekst.js'
 
 const FORLOEB = [
   ['0–10', 'Formuleringstrappen på tavlen – de fire spørgsmål er ryggraden i gennemgangen.'],
@@ -10,21 +11,21 @@ const FORLOEB = [
   ['85–90', 'Opsamling: hvilke faldgruber ramte vi, og hvilket trin var sværest?']
 ]
 
-/** Trin 5: underviservejledningen – pointer og sammenhænge område for område. */
+/** Trin 5: underviseroverblikket – pointer og sammenhænge område for område. */
 export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) {
   const k = a.konklusion
   const kaeder = a.pointer?.kaeder || []
   const samlet = (prosa.konklusion?.samlet || k.samlet.join('\n') || k.udkast[0] || '').split(/\n+/).filter(x => x.trim())
   return (
     <>
-      <h2 className="sektion-titel">Underviservejledning – {a.navn}</h2>
+      <h2 className="sektion-titel">Underviseroverblik – {a.navn}</h2>
       <p className="sektion-intro">
         De vigtigste pointer og sammenhænge til gennemgangen med holdet. Den fulde trappe for hvert nøgletal står i den
         vejledende besvarelse.
       </p>
       <div className="knap-raekke">
         <button className="knap primaer" disabled={!!travl} onClick={() => hentWord('vejledning')}>
-          {travl === 'vejledning' ? 'Danner …' : 'Hent underviservejledning (Word)'}
+          {travl === 'vejledning' ? 'Danner …' : 'Hent underviseroverblik (Word)'}
         </button>
       </div>
 
@@ -70,9 +71,9 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
           <section className="kort" key={o.id}>
             <h3>{om.navn}</h3>
             {dk && (
-              <div className="delkonklusion">
+              <div className="delkonklusion hovedpointe">
                 <span className="delkonklusion-titel">Hovedpointe</span>
-                <p>{dk}</p>
+                {saetninger(dk).map((x, i) => <p key={i}>{x}</p>)}
               </div>
             )}
             <table className="data smal">

@@ -1,4 +1,4 @@
-import { udtraekBeretning, beretningFraBegreber, udbytteFraFakta, udbytteFraRaekker, flet } from './beretning.js'
+import { udtraekBeretning, beretningFraBegreber, udbytteFraFakta, udbytteFraRaekker, flet, UDBYTTE_UDGAVE } from './beretning.js'
 
 // Regnskabet indlæses, som det står: hver post i resultatopgørelse, balance
 // og pengestrømsopgørelse bliver sin egen række med regnskabets eget navn,
@@ -419,6 +419,7 @@ export function parseXbrlDokument (tekst, kilde = '', ParserClass = globalThis.D
     diagnostik,
     beretning,
     udbytte,
+    udbytteUdgave: UDBYTTE_UDGAVE,
     poster,
     kolonner: kolonner.filter(k => Object.keys(k.values).length > 0)
   }

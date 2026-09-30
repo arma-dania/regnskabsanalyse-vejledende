@@ -1,5 +1,5 @@
 // Ét Word-dokument med de dele, brugeren har krydset af: nøgletal og grafer,
-// den vejledende besvarelse (analysen) og underviservejledningen. Hver del
+// den vejledende besvarelse (analysen) og underviseroverblikket. Hver del
 // er sin egen sektion og begynder på en ny side.
 
 import { Document, Packer } from 'docx'
@@ -11,7 +11,7 @@ import { besvarelseBoern, vejledningBoern } from '../analyse/word.js'
 export const DELE = [
   { id: 'noegletal', navn: 'Nøgletal og grafer' },
   { id: 'analyse', navn: 'Analyse' },
-  { id: 'vejledning', navn: 'Underviservejledning' }
+  { id: 'vejledning', navn: 'Underviseroverblik' }
 ]
 
 export async function hentSamletWord ({ dataset, analyse, prosa, valgt }) {

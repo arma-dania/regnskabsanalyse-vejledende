@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DOMParser } from "linkedom";
-import { udtraekBeretning, udbytteFraFakta, udbytteFraLinjer } from "../src/lib/beretning.js";
+import { udtraekBeretning, udbytteFraFakta, udbytteFraLinjer, UDBYTTE_UDGAVE } from "../src/lib/beretning.js";
 import { parseXbrlDokument } from "../src/lib/ixbrlImport.js";
 import { fraDataset, fraFund } from "../src/analyse/fraDataset.js";
 import { analyser } from "../src/analyse/analyse.js";
@@ -118,6 +118,7 @@ function datasetMedUdbytte() {
     enhed: "kr.", kolonner: [{ navn: "2025" }, { navn: "2024" }],
     beretning: "Bestyrelsen foreslår et udbytte på 8 mio. kr. Egenkapitalen er styrket af årets overskud.",
     udbytte: { 2025: { foreslaaet: 8e6, betalt: 3e6 } },
+    udbytteUdgave: UDBYTTE_UDGAVE,
   }];
   return { d, fund };
 }
@@ -173,4 +174,22 @@ test("beretningen citeres ved det nøgletal, den handler om, og dens tal må bru
   assert.ok(sol.beretning.some(c => /udbytte på 8 mio\. kr\./.test(c)), "sætningen deles ikke efter mio.");
   assert.ok(a.faldgruber.some(f => f.tema === "beretning-ukritisk"));
   assert.deepEqual(tjekTal("Ifølge ledelsen foreslås et udbytte på 8 mio. kr.", a), []);
+});
+
+test("udbytte fra en ældre indlæsning bruges ikke og markeres som forældet", () => {
+  const { d, fund } = datasetMedUdbytte();
+  const gammel = fund.map(f => { const { udbytteUdgave, ...rest } = f; return rest; });
+  const { udbytte, udbytteForaeldet } = fraFund(gammel, ["2023", "2024", "2025"], d.enhed);
+  assert.equal(udbytte[2].foreslaaet, null);
+  assert.equal(udbytteForaeldet, true);
+  assert.equal(fraFund(fund, ["2023", "2024", "2025"], d.enhed).udbytteForaeldet, false);
+});
+
+test("soliditetskæden tæller kun udbytte betalt i perioden", () => {
+  const { d, fund } = datasetMedUdbytte();
+  fund[0].udbytte = { 2023: { betalt: 80e6 }, 2024: { foreslaaet: 80e6 }, 2025: { betalt: 80e6 } };
+  const { kase, noegletal } = fraDataset(d, fund);
+  const a = analyser(kase, noegletal);
+  const led = a.pointer.kaeder.find(k => k.id === "soliditet").led.find(l => /Udbytte/.test(l.navn));
+  assert.equal(led.til, "80.000 t.kr.");
 });

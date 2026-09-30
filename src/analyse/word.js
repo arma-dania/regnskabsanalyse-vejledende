@@ -1,9 +1,10 @@
-// De to Word-dokumenter: den vejledende besvarelse og underviservejledningen.
+// De to Word-dokumenter: den vejledende besvarelse og underviseroverblikket.
 
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, ShadingType, BorderStyle } from "docx";
 import { OMRAADER, fmtPct } from "./beregning.js";
 import { TRIN } from "./temaer.js";
 import { MARKEDSRENTE_NAVN } from "./maalestok.js";
+import { saetninger } from "./tekst.js";
 
 const VIN = "7A1F2B";
 
@@ -100,12 +101,12 @@ export function besvarelseBoern(a, prosa = {}) {
   return dele;
 }
 
-/** Underviservejledningens indhold – også brugt i det samlede Word-dokument. */
+/** Underviseroverblikkets indhold – også brugt i det samlede Word-dokument. */
 export function vejledningBoern(a, prosa = {}) {
   const k = a.konklusion;
   const kaeder = a.pointer?.kaeder || [];
   const dele = [
-    new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(`Underviservejledning – ${a.navn}`)] }),
+    new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(`Underviseroverblik – ${a.navn}`)] }),
     p("De vigtigste pointer og sammenhænge til gennemgangen med holdet. Den fulde trappe står i den vejledende besvarelse.", { run: { italics: true } }),
     ...forudsaetninger(a),
 
@@ -129,7 +130,7 @@ export function vejledningBoern(a, prosa = {}) {
     if (om.ikkeRelevant) continue;
     dele.push(h(om.navn, HeadingLevel.HEADING_1));
     const dk = prosa?.omraader?.[o.id]?.delkonklusion || om.delkonklusion;
-    if (dk) dele.push(fed("Hovedpointe: ", dk.replace(/\n+/g, " ")));
+    if (dk) dele.push(fed("Hovedpointe", ""), ...saetninger(dk).map(x => p(x, { indent: { left: 360 }, spacing: { after: 140 } })));
     if (om.indledning) dele.push(p(om.indledning, { run: { italics: true } }));
     dele.push(noegletalTabel(a, om), luft());
     const sam = a.pointer?.sammenhaenge?.[o.id] || [];

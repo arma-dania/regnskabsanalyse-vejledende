@@ -7,6 +7,7 @@ Trappen bruges for hvert nøgletal – eller for en gruppe af nøgletal, der del
 Trin 1 Konstatering – Hvad er der sket? Nøgletallet (hvert nøgletal i gruppen) med konkrete tal, retning og størrelsesorden. Ingen årsager, ingen vurdering.
 Trin 2 Forklaring – Hvorfor er det sket? Årsagen belagt i tællerens og nævnerens udvikling og i sammenhængen med andre nøgletal. Ligger årsagen i et andet nøgletal, henvises dertil.
 Trin 3 Vurdering – Er det godt eller skidt, målt mod hvad? Hver vurdering holdes op mod en navngivet målestok: sidste år, markedsrenten (10-årig dansk statsobligation), en tommelfingerregel eller forretningsmodellen.
+Hvert analyseområde afsluttes med en delkonklusion, der samler trapperne i området.
 Trin 4 Forretningsmodellen – Hvad betyder det for måden, virksomheden tjener penge på, og hvad skal ledelsen gøre? Holder modellen, presses den, eller skifter den? Slutter med en anbefaling, der følger af tallene.`;
 
 const REGLER = `Regler:
@@ -18,14 +19,14 @@ const REGLER = `Regler:
 
 const ramme = s => `<<<\n${String(s ?? "").slice(0, 12000)}\n>>>`;
 
-export function gruppePrompt({ virksomhed, omraade, titel, tabel, trin1, trin2, trin3, delkonklusion, beretning }) {
+export function gruppePrompt({ virksomhed, omraade, titel, tabel, trin1, trin2, trin3, beretning }) {
   return `Du skriver en del af en vejledende besvarelse til en regnskabsanalyse. En underviser bruger den som facit, når holdet gennemgår opgaven, så den skal være fagligt korrekt og følge formuleringstrappen tydeligt.
 
 ${TRAPPE}
 
 ${REGLER}
 
-Omskriv fundene for nøgletallet (eller nøgletalsgruppen) til tre korte afsnit – ét pr. trin (1, 2 og 3) – og en delkonklusion. Hvert afsnit 1-4 sætninger. Trin 1 skal nævne ændringsprocenten fra første til sidste år, som den står i fundene, og må ikke indeholde årsager eller vurderinger; trin 2 ikke vurderinger. I en gruppe skal trin 1 nævne hvert nøgletal i gruppen. Delkonklusionen samler trappen i 1-2 sætninger: hvad er sket, hvorfor, og er det godt eller skidt målt mod målestokkene.
+Omskriv fundene for nøgletallet (eller nøgletalsgruppen) til tre korte afsnit – ét pr. trin (1, 2 og 3). Hvert afsnit 1-4 sætninger. Trin 1 skal nævne ændringsprocenten fra første til sidste år, som den står i fundene, og må ikke indeholde årsager eller vurderinger; trin 2 ikke vurderinger. I en gruppe skal trin 1 nævne hvert nøgletal i gruppen. Står der i fundene, at et nøgletal trækker overskudsgraden eller aktivernes omsætningshastighed op eller ned, så behold den sammenhæng – indtjeningsevnen undersøger nærmere overskudsgraden, og kapitaltilpasningen undersøger nærmere aktivernes omsætningshastighed.
 
 Virksomhed: ${ramme(virksomhed)}
 Analyseområde: ${ramme(omraade)}
@@ -34,14 +35,37 @@ Nøgletallene: ${ramme(tabel)}
 Fund, trin 1: ${ramme(trin1)}
 Fund, trin 2: ${ramme(trin2)}
 Fund, trin 3: ${ramme(trin3)}
-Motorens delkonklusion: ${ramme(delkonklusion)}
 Uddrag af ledelsesberetningen om dette nøgletal: ${ramme(beretning || "(intet)")}`;
 }
 
 export const GRUPPESKEMA = {
   type: "object",
-  properties: { trin1: { type: "string" }, trin2: { type: "string" }, trin3: { type: "string" }, delkonklusion: { type: "string" } },
-  required: ["trin1", "trin2", "trin3", "delkonklusion"],
+  properties: { trin1: { type: "string" }, trin2: { type: "string" }, trin3: { type: "string" } },
+  required: ["trin1", "trin2", "trin3"],
+  additionalProperties: false,
+};
+
+export function omraadePrompt({ virksomhed, omraade, indledning, tabel, trapper, delkonklusion }) {
+  return `Du skriver delkonklusionen for et analyseområde i en vejledende besvarelse til en regnskabsanalyse. En underviser bruger den som facit.
+
+${TRAPPE}
+
+${REGLER}
+
+Skriv delkonklusionen som ét afsnit på 2-4 sætninger, der samler trapperne i området: hvad er sket, hvorfor, og er det godt eller skidt målt mod målestokkene. Gentag ikke alle tal – brug de vigtigste. Undersøger området nærmere overskudsgraden eller aktivernes omsætningshastighed (se indledningen), skal delkonklusionen forklare, hvorfor dette nøgletal har udviklet sig, som det har.
+
+Virksomhed: ${ramme(virksomhed)}
+Analyseområde: ${ramme(omraade)}
+Indledning til området: ${ramme(indledning || "(ingen)")}
+Nøgletallene: ${ramme(tabel)}
+Trapperne i området: ${ramme(trapper)}
+Motorens delkonklusion: ${ramme(delkonklusion)}`;
+}
+
+export const OMRAADESKEMA = {
+  type: "object",
+  properties: { delkonklusion: { type: "string" } },
+  required: ["delkonklusion"],
   additionalProperties: false,
 };
 
@@ -59,7 +83,7 @@ Skriv også en kort "fortælling" på 2-3 sætninger til underviseren: det store
 Virksomhed: ${ramme(virksomhed)}
 Beskrivelse af forretningsmodellen: ${ramme(forretningsmodel || "(ikke beskrevet)")}
 Typisk profil for modellen: ${ramme(profil || "(ingen valgt)")}
-Analysen nøgletal for nøgletal: ${ramme(omraader)}
+Delkonklusionerne pr. analyseområde: ${ramme(omraader)}
 Styrker: ${ramme(styrker)}
 Svagheder: ${ramme(svagheder)}
 Afvigelser fra den typiske profil: ${ramme(afvigelser)}

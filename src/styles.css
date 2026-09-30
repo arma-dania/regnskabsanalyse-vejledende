@@ -327,4 +327,5 @@ details summary { cursor: pointer; font-size: 13px; color: var(--petrol); margin
 
 .delkonklusion { margin: 10px 0 4px; padding: 8px 14px; background: var(--petrol-lys); border-radius: var(--radius); }
 .delkonklusion p { margin: 2px 0; }
+.indledning { margin: 0 0 8px; font-style: italic; }
 .delkonklusion-titel { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--petrol); }

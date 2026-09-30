@@ -36,8 +36,23 @@ export function skrivGruppe(a, oid, g, kode) {
     trin1: g.trin1.join("\n"),
     trin2: g.trin2.join("\n"),
     trin3: g.trin3.join("\n"),
-    delkonklusion: g.delkonklusion || "",
     beretning: (g.beretning || []).join("\n"),
+  }, kode);
+}
+
+/** Delkonklusionen for et analyseområde, bygget på trapperne i området. */
+export function skrivOmraade(a, oid, prosa, kode) {
+  const o = a.omraader[oid];
+  return kald("omraade", {
+    virksomhed: a.navn,
+    omraade: o.navn,
+    indledning: o.indledning || "",
+    tabel: tabelTekst(a, o, o.tabel.map(r => r.nr)),
+    trapper: o.grupper.map(g => {
+      const x = prosa.grupper?.[g.id];
+      return `${g.titel}:\n` + [1, 2, 3].map(nr => `Trin ${nr}: ${x?.[`trin${nr}`] || g[`trin${nr}`].join(" ")}`).join("\n");
+    }).join("\n\n"),
+    delkonklusion: o.delkonklusion,
   }, kode);
 }
 
@@ -49,10 +64,7 @@ export function skrivKonklusion(a, prosa, kode) {
     profil: a.profil ? `${a.profil.navn}: ${a.profil.kendetegn}` : "",
     omraader: OMRAADER.filter(o => !a.omraader[o.id].ikkeRelevant).map(o => {
       const om = a.omraader[o.id];
-      return `${om.navn}:\n` + om.grupper.map(g => {
-        const x = prosa.grupper?.[g.id];
-        return `${g.titel} – delkonklusion: ${x?.delkonklusion || g.delkonklusion}`;
-      }).join("\n");
+      return `${om.navn} – delkonklusion: ${prosa.omraader?.[o.id]?.delkonklusion || om.delkonklusion}`;
     }).join("\n\n"),
     styrker: k.styrker.join("\n"),
     svagheder: k.svagheder.join("\n"),

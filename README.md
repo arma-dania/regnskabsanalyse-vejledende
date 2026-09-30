@@ -45,9 +45,9 @@ af nøgletal, der hører sammen – op ad formuleringstrappen**, uden AI:
   nøgletal, henvises dertil.
 - **Trin 3 Vurdering:** de fire målestokke – sidste år, markedsrenten,
   tommelfingerreglerne og forretningsmodellen. Branchetal bruges ikke.
-- **Delkonklusion:** hvert nøgletal og hver gruppe slutter med 1-2 sætninger,
-  der samler trappen: hvad er sket, hvorfor, og er det godt eller skidt målt
-  mod målestokkene. Delkonklusionerne er byggestenene til trin 4.
+- **Delkonklusion:** hvert analyseområde slutter med én delkonklusion, der
+  samler trapperne i området: hvad er sket, hvorfor, og er det godt eller
+  skidt målt mod målestokkene. Delkonklusionerne er byggestenene til trin 4.
 - **Trin 4 Forretningsmodellen** skrives i den samlede konklusion: styrker,
   svagheder, afvigelser fra profilen, en vurdering (holder / presset / under
   forandring) og anbefalinger, der følger af tallene.
@@ -66,12 +66,13 @@ deler forklaring og målestok – ellers ville samme argument stå flere gange:
 | Likviditetsgrad I og II (23-24) | Forskellen er kun varelageret |
 | P/E og kurs/indre værdi (26, 28) | Markedets pris mod et regnskabstal |
 
-Resten skrives hver for sig – også AG, OG og AOH. **Overskudsgraden indleder
-indtjeningsevnen, og aktivernes omsætningshastighed indleder
-kapitaltilpasningen**, fordi de to områder forklarer hver sin faktor i
-afkastningsgraden. Rentabiliteten består derfor af afkastningsgrad,
-egenkapitalens og fremmedkapitalens forrentning og gearing, og AG's trappe
-henviser frem til OG og AOH.
+Resten skrives hver for sig – også AG, OG og AOH, som alle står under
+rentabiliteten. **Indtjeningsevnen undersøger nærmere overskudsgraden, og
+kapitaltilpasningen undersøger nærmere aktivernes omsætningshastighed.** Det
+siges i en indledning til hvert af de to områder; forklaringerne i områderne
+føres tilbage til OG og AOH ("den lavere bruttomargin trækker overskudsgraden
+ned"), og delkonklusionen forklarer, hvorfor OG henholdsvis AOH har udviklet
+sig, som de har.
 
 **Claude** (`netlify/functions/skriv.mjs`) får motorens fund som data og
 omskriver dem til prosa. Claude må ikke regne eller finde på tal. Hvert tal i

@@ -57,7 +57,6 @@ export function analyser(kase, noegletal = null) {
           id: g.id, nrs: g.nrs,
           titel: g.titel || NT[g.nrs[0]].navn,
           trin1: ren(t.trin1), trin2: ren(t.trin2), trin3: ren(t.trin3),
-          delkonklusion: ren([DELKONKLUSION[g.id]?.(ctx)])[0] || "",
           noegle: [
             ...g.nrs.filter(nr => serie(nr)[2] != null).map(nr => `${NT[nr].navn}: ${serie(nr).map(x => formatNt(nr, x, ctx.enh)).join(" → ")}`),
             ...(g.id === "sol" && ctx.udbytte.some(u => u?.foreslaaet != null) ? [`Udbytte for året: ${ctx.udbytte.map(u => fmtBeloeb(u?.foreslaaet, ctx.enh)).join(" → ")}`] : []),
@@ -69,7 +68,9 @@ export function analyser(kase, noegletal = null) {
       });
     omraader[o.id] = {
       navn: o.navn,
+      indledning: ren([INDLEDNING[o.id]?.(ctx)])[0] || "",
       grupper,
+      delkonklusion: grupper.length ? ren([OMRAADE_KONKLUSION[o.id](ctx).filter(Boolean).join(" ")])[0] || "" : "",
       ikkeRelevant: o.id === "boers" && !grupper.length,
       tabel: o.nrs.map(nr => ({
         nr, navn: NT[nr].navn, vaerdier: serie(nr),
@@ -118,6 +119,13 @@ function nt(ctx, nr) {
   const f = x => formatNt(nr, x, ctx.enh);
   if (!vaesentlig(nr, s[0], s[2])) return `${BESTEMT[nr]} var stort set uændret (${f(s[0])} → ${f(s[2])})`;
   return `${BESTEMT[nr]} ${verbum(s[0], s[2])} fra ${f(s[0])} til ${f(s[2])}`;
+}
+
+/** "Den lavere bruttomargin trækker overskudsgraden ned." – kun ved en væsentlig ændring. */
+function traekker(ctx, nr, hvad, op, ned) {
+  const s = ctx.serie(nr);
+  if (s[0] == null || s[2] == null || !vaesentlig(nr, s[0], s[2])) return null;
+  return s[2] > s[0] ? `${op} trækker ${hvad} op.` : `${ned} trækker ${hvad} ned.`;
 }
 
 /** Sætter delsætninger sammen: "a, mens b." */
@@ -285,8 +293,8 @@ const SKRIV = {
     if (d && vaesentlig(1, s[0], s[2])) {
       const driver = Math.abs(d.og) >= Math.abs(d.aoh) ? "og" : "aoh";
       t2.push(driver === "og"
-        ? "Udviklingen kommer primært fra overskudsgraden – altså fra indtjeningen på hver omsat krone. Hvorfor, forklares under indtjeningsevnen, som begynder med overskudsgraden."
-        : "Udviklingen kommer primært fra omsætningshastigheden – altså fra, hvor effektivt kapitalen udnyttes. Hvorfor, forklares under kapitaltilpasningen, som begynder med omsætningshastigheden.");
+        ? "Udviklingen kommer primært fra overskudsgraden – altså fra indtjeningen på hver omsat krone. Hvorfor overskudsgraden har udviklet sig sådan, undersøges nærmere under indtjeningsevnen."
+        : "Udviklingen kommer primært fra omsætningshastigheden – altså fra, hvor effektivt kapitalen udnyttes. Hvorfor omsætningshastigheden har udviklet sig sådan, undersøges nærmere under kapitaltilpasningen.");
       const mindre = driver === "og" ? d.aoh : d.og;
       if (Math.sign(mindre) === Math.sign(d.og + d.aoh) && Math.abs(mindre) >= Math.abs(d.og + d.aoh) / 4)
         faldgrube(ctx, "sammenhaeng-ubrugt",
@@ -319,7 +327,7 @@ const SKRIV = {
       trin2: [
         saetning(postUdv(ctx, "resultatPrimaerDrift", "resultatet af primær drift"), postUdv(ctx, "omsaetning", "omsætningen")),
         ko0 != null && ko2 != null && nt(ctx, 7)
-          ? `Overskudsgraden er bruttomarginen fratrukket kapacitetsomkostningerne i procent af omsætningen: ${nt(ctx, 7)}, og kapacitetsomkostningerne gik fra ${fmtPct(ko0)} til ${fmtPct(ko2)} af omsætningen. Bruttomarginen og kapacitetsomkostningerne gennemgås nedenfor.`
+          ? `Overskudsgraden er bruttomarginen fratrukket kapacitetsomkostningerne i procent af omsætningen: ${nt(ctx, 7)}, og kapacitetsomkostningerne gik fra ${fmtPct(ko0)} til ${fmtPct(ko2)} af omsætningen. Hvorfor, undersøges nærmere under indtjeningsevnen.`
           : null,
       ],
       trin3: [sidsteAar(ctx, 2), profilSaetning(ctx, "og")],
@@ -337,7 +345,7 @@ const SKRIV = {
       trin2: [
         saetning(postUdv(ctx, "omsaetning", "omsætningen"), udv("de gennemsnitlige aktiver", gA0, gA2)),
         poster.length && Math.abs(poster[0].d) >= 1
-          ? `Pr. 100 kr. omsætning er den største ændring i ${NAVN[poster[0].k]}: fra ${fmtX(poster[0].a, 0)} til ${fmtX(poster[0].b, 0)} kr. (ultimo). Anlæggene og arbejdskapitalen gennemgås nedenfor.`
+          ? `Pr. 100 kr. omsætning er den største ændring i ${NAVN[poster[0].k]}: fra ${fmtX(poster[0].a, 0)} til ${fmtX(poster[0].b, 0)} kr. (ultimo). Hvorfor, undersøges nærmere under kapitaltilpasningen.`
           : null,
       ],
       trin3: [sidsteAar(ctx, 3), profilSaetning(ctx, "aoh")],
@@ -432,6 +440,7 @@ const SKRIV = {
       trin2: [
         saetning(postUdv(ctx, "bruttoresultat", "bruttoresultatet"), postUdv(ctx, "omsaetning", "omsætningen")),
         vf ? `${stort(vf)}. En ændret bruttomargin skyldes priserne, indkøbspriserne eller varemikset – ledelsesberetningen skal vise hvilket.` : null,
+        traekker(ctx, 7, "overskudsgraden", "Den højere bruttomargin", "Den lavere bruttomargin"),
       ],
       trin3: [sidsteAar(ctx, 7), profilSaetning(ctx, "bm")],
     };
@@ -448,7 +457,10 @@ const SKRIV = {
           ? "Omkostningerne er altså vokset hurtigere end det, salget giver i bruttoresultat."
           : ix[2].kapacitetsomkostninger < ix[2].bruttoresultat - 2
             ? "Bruttoresultatet er altså vokset hurtigere end omkostningerne."
-            : "Bruttoresultat og kapacitetsomkostninger har fulgt hinanden."));
+            : "Bruttoresultat og kapacitetsomkostninger har fulgt hinanden.") +
+        (ix[2].kapacitetsomkostninger > ix[2].bruttoresultat + 2
+          ? " Det trækker overskudsgraden ned."
+          : ix[2].kapacitetsomkostninger < ix[2].bruttoresultat - 2 ? " Det trækker overskudsgraden op." : ""));
     const t3 = [sidsteAar(ctx, 8)];
     if (ix[2].omsaetning != null && ix[2].resultatPrimaerDrift != null) {
       const rentabel = ix[2].resultatPrimaerDrift >= ix[2].omsaetning - 5;
@@ -504,6 +516,7 @@ const SKRIV = {
         saetning(postUdv(ctx, "omsaetning", "omsætningen"), postUdv(ctx, "anlaegsaktiver", "anlægsaktiverne")),
         saetning(postUdv(ctx, "materielleAnlaeg", "de materielle anlægsaktiver"), postUdv(ctx, "immaterielleAnlaeg", "de immaterielle anlægsaktiver")),
         "Omsætningshastighederne stiger, når salget vokser hurtigere end anlæggene, og falder, når der investeres forud for salget.",
+        traekker(ctx, 13, "aktivernes omsætningshastighed", "Den bedre udnyttelse af anlæggene", "Den dårligere udnyttelse af anlæggene"),
       ],
       trin3: [sidsteAar(ctx, 13)],
     };
@@ -525,6 +538,12 @@ const SKRIV = {
         .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
       t2.push(`Bindingen er blevet ${netto(2) > netto(0) ? "længere" : "kortere"} med ${Math.abs(netto(2) - netto(0))} dage, især på grund af ${dele[0][0]} (${dele[0][1] > 0 ? "+" : "−"}${Math.abs(dele[0][1])} dage).`);
     }
+    // Lager og debitorer står i aktiverne; leverandørgælden gør ikke.
+    const aktivdage = i => (lager[i] && deb[i] ? dage(lager[i]) + dage(deb[i]) : null);
+    if (aktivdage(0) != null && aktivdage(2) != null && Math.abs(aktivdage(2) - aktivdage(0)) >= 3)
+      t2.push(aktivdage(2) > aktivdage(0)
+        ? "Mere kapital bundet i varelager og debitorer pr. omsat krone trækker aktivernes omsætningshastighed ned."
+        : "Mindre kapital bundet i varelager og debitorer pr. omsat krone trækker aktivernes omsætningshastighed op.");
     if (kred[0] != null && kred[2] != null && vaesentlig(18, kred[0], kred[2]))
       faldgrube(ctx, "noegletal-misforstaaet",
         `Varekreditorernes omsætningshastighed ${verbum(kred[0], kred[2])}. Her er lavere bedre for likviditeten – det vender mange om.`,
@@ -707,9 +726,9 @@ const SKRIV = {
 
 /* ====================== Delkonklusioner ====================== */
 
-// Én til to sætninger pr. nøgletal eller gruppe, der samler trappen: hvad er
-// sket, hvorfor, og er det godt eller skidt? Delkonklusionerne er byggestenene
-// til den samlede konklusion.
+// Én delkonklusion pr. analyseområde, der samler trapperne: hvad er sket,
+// hvorfor, og er det godt eller skidt? Den bygges af sætningerne nedenfor –
+// én pr. nøgletal eller gruppe – og er byggestenen til den samlede konklusion.
 
 /** "forbedret" / "forringet" / "stabil" – eller "steget" / "faldet" for neutrale nøgletal. */
 function bevaegelse(ctx, nr) {
@@ -844,6 +863,30 @@ const DELKONKLUSION = {
     return ki == null ? null : `Markedet værdsætter virksomheden ${ki > 1 ? "højere" : "lavere"} end den bogførte egenkapital (kurs/indre værdi ${v(ctx, 28)}).`;
   },
   indre(ctx) { return ctx.sidst(27) == null ? null : `${er(ctx, 27, "Den indre værdi pr. aktie")}.`; },
+};
+
+// Indtjeningsevnen og kapitaltilpasningen er ikke selvstændige: de undersøger
+// nærmere de to faktorer i afkastningsgraden. Det siges i indledningen.
+const INDLEDNING = {
+  indtjeningsevne(ctx) {
+    const og = nt(ctx, 2);
+    return `Indtjeningsevnen undersøger nærmere overskudsgraden fra rentabilitetsanalysen${og ? ` – ${og}` : ""}. Overskudsgraden er bruttomarginen fratrukket kapacitetsomkostningerne i procent af omsætningen. Bruttomarginen, indekstallene, den driftsmæssige gearing og robustheden viser derfor, hvorfor overskudsgraden har udviklet sig, som den har.`;
+  },
+  kapital(ctx) {
+    const aoh = nt(ctx, 3);
+    return `Kapitaltilpasningen undersøger nærmere aktivernes omsætningshastighed fra rentabilitetsanalysen${aoh ? ` – ${aoh}` : ""}. Omsætningshastigheden afhænger af, hvor meget kapital der er bundet i anlæg, varelager og debitorer i forhold til omsætningen. Anlæggenes omsætningshastigheder og arbejdskapitalen viser derfor, hvorfor aktivernes omsætningshastighed har udviklet sig, som den har.`;
+  },
+};
+
+// Hvilke sætninger delkonklusionen for hvert område bygges af. Under
+// indtjeningsevnen og kapitaltilpasningen står forklaringen af henholdsvis
+// overskudsgraden og aktivernes omsætningshastighed først.
+const OMRAADE_KONKLUSION = {
+  rentabilitet: ctx => [DELKONKLUSION.ag(ctx), DELKONKLUSION.ekf(ctx)],
+  indtjeningsevne: ctx => [DELKONKLUSION.og(ctx), DELKONKLUSION.indeks(ctx), DELKONKLUSION.robusthed(ctx)],
+  kapital: ctx => [DELKONKLUSION.aoh(ctx), DELKONKLUSION.arbejdskapital(ctx), DELKONKLUSION.cf(ctx)],
+  soliditet: ctx => [DELKONKLUSION.sol(ctx), DELKONKLUSION.kapbind(ctx), DELKONKLUSION.likviditet(ctx)],
+  boers: ctx => [DELKONKLUSION.eps(ctx), DELKONKLUSION.marked(ctx)],
 };
 
 /** "på linje med det normale" / "under det normale" / "over det normale". */

@@ -4,7 +4,7 @@ import { PROFILER, PROFILNOEGLE, TOMMELFINGERREGLER, MARKEDSRENTE_FORSLAG, MARKE
 import { TRIN } from '../analyse/temaer.js'
 import { tomAnalyse } from '../analyse/fraDataset.js'
 import { talIAnalysen, tjekTal } from '../analyse/tjek.js'
-import { hentKode, gemKode, tjekKode, alleGrupper, skrivGruppe, skrivKonklusion } from '../analyse/api.js'
+import { hentKode, gemKode, tjekKode, alleGrupper, skrivGruppe, skrivOmraade, skrivKonklusion } from '../analyse/api.js'
 
 const komma = x => String(x).replace('.', ',')
 
@@ -18,7 +18,7 @@ export default function AnalyseTrin ({ dataset, setDataset, analyse, indlaest, p
       <h2 className="sektion-titel">Vejledende besvarelse – {analyse.navn}</h2>
       <p className="sektion-intro">
         Analysen er skrevet ud fra nøgletallene i trin 3 og følger formuleringstrappen: trin 1-3 for hvert
-        nøgletal og hver gruppe af nøgletal, trin 4 i den samlede konklusion. Motoren regner; Claude kan omskrive
+        nøgletal og hver gruppe af nøgletal, en delkonklusion for hvert analyseområde og trin 4 i den samlede konklusion. Motoren regner; Claude kan omskrive
         til prosa.
       </p>
       <Maalestokke dataset={dataset} setDataset={setDataset} analyse={analyse} />
@@ -205,6 +205,11 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet }) {
     const svar = await skrivGruppe(analyse, oid, g, kode)
     return { ...p, grupper: { ...(p.grupper || {}), [g.id]: svar }, _fingeraftryk: fingeraftryk }
   }
+  async function skrivOmr (oid, p) {
+    setTravl(oid)
+    const svar = await skrivOmraade(analyse, oid, p, kode)
+    return { ...p, omraader: { ...(p.omraader || {}), [oid]: svar }, _fingeraftryk: fingeraftryk }
+  }
   async function skrivKonk (p) {
     setTravl('konklusion')
     return { ...p, konklusion: await skrivKonklusion(analyse, p, kode), _fingeraftryk: fingeraftryk }
@@ -215,15 +220,21 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet }) {
   }
   const skrivAlt = () => koer(async () => {
     let p = { ...brug }
-    for (const { omraade, gruppe } of alleGrupper(analyse)) {
-      p = await skrivGrp(omraade, gruppe, p)
+    for (const o of OMRAADER) {
+      if (analyse.omraader[o.id].ikkeRelevant) continue
+      for (const { gruppe } of alleGrupper(analyse).filter(x => x.omraade === o.id)) {
+        p = await skrivGrp(o.id, gruppe, p)
+        setProsa(p)
+      }
+      p = await skrivOmr(o.id, p)
       setProsa(p)
     }
     setProsa(await skrivKonk(p))
   })
   const skrivEn = (oid, g) => koer(async () => setProsa(await skrivGrp(oid, g, brug)))
+  const skrivDelkonklusion = oid => koer(async () => setProsa(await skrivOmr(oid, brug)))
   const skrivKonklusionen = () => koer(async () => setProsa(await skrivKonk(brug)))
-  const travlNavn = travl === 'konklusion' ? 'konklusionen' : alleGrupper(analyse).find(x => x.gruppe.id === travl)?.gruppe.titel.toLowerCase()
+  const travlNavn = travl === 'konklusion' ? 'konklusionen' : analyse.omraader[travl] ? `delkonklusionen for ${analyse.omraader[travl].navn.toLowerCase()}` : alleGrupper(analyse).find(x => x.gruppe.id === travl)?.gruppe.titel.toLowerCase()
 
   return (
     <>
@@ -255,8 +266,8 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet }) {
 
       {OMRAADER.map(o => (
         <Omraade
-          key={o.id} a={analyse} id={o.id} prosa={brug.grupper || {}} saet={saet}
-          kanSkrive={forbundet && !travl} skriv={g => skrivEn(o.id, g)}
+          key={o.id} a={analyse} id={o.id} prosa={brug.grupper || {}} dk={brug.omraader?.[o.id]?.delkonklusion} saet={saet}
+          kanSkrive={forbundet && !travl} skriv={g => skrivEn(o.id, g)} skrivDk={() => skrivDelkonklusion(o.id)}
         />
       ))}
 
@@ -281,11 +292,12 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet }) {
   )
 }
 
-function Omraade ({ a, id, prosa, saet, kanSkrive, skriv }) {
+function Omraade ({ a, id, prosa, dk, saet, kanSkrive, skriv, skrivDk }) {
   const o = a.omraader[id]
   return (
     <section className="kort">
       <h3>{o.navn}</h3>
+      {o.indledning && <p className="indledning">{o.indledning}</p>}
       {o.ikkeRelevant
         ? <p className="hjaelp">Der er ikke oplyst antal aktier og børskurs, så de børsrelaterede nøgletal kan ikke beregnes. Er virksomheden ikke børsnoteret, springes området over.</p>
         : o.grupper.map(g => (
@@ -316,16 +328,17 @@ function Omraade ({ a, id, prosa, saet, kanSkrive, skriv }) {
                 )}
               </div>
             ))}
-            {(prosa[g.id]?.delkonklusion || g.delkonklusion) && (
-              <div className="delkonklusion">
-                <span className="delkonklusion-titel">Delkonklusion</span>
-                {prosa[g.id]?.delkonklusion
-                  ? <Prosa tekst={prosa[g.id].delkonklusion} saet={saet} a={a} />
-                  : <p>{g.delkonklusion}</p>}
-              </div>
-            )}
           </div>
         ))}
+      {!o.ikkeRelevant && (dk || o.delkonklusion) && (
+        <div className="delkonklusion">
+          <div className="kort-top">
+            <span className="delkonklusion-titel">Delkonklusion – {o.navn.toLowerCase()}</span>
+            {kanSkrive && <button className="knap lys lille" onClick={skrivDk}>{dk ? 'Skriv igen' : 'Skriv som prosa'}</button>}
+          </div>
+          {dk ? <Prosa tekst={dk} saet={saet} a={a} /> : <p>{o.delkonklusion}</p>}
+        </div>
+      )}
     </section>
   )
 }

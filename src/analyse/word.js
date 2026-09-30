@@ -59,7 +59,7 @@ export const vejledningDocx = (a, prosa) => Packer.toBlob(vejledningDok(a, prosa
 export function besvarelseDok(a, prosa = {}) {
   const dele = [
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(`Vejledende besvarelse – ${a.navn}`)] }),
-    p("Regnskabsanalyse på formuleringstrappen: trin 1-3 for hvert nøgletal og hver gruppe af nøgletal, trin 4 i den samlede konklusion.", { run: { italics: true } }),
+    p("Regnskabsanalyse på formuleringstrappen: trin 1-3 for hvert nøgletal og hver gruppe af nøgletal, en delkonklusion for hvert analyseområde og trin 4 i den samlede konklusion.", { run: { italics: true } }),
     ...forudsaetninger(a),
   ];
   for (const o of OMRAADER) {
@@ -69,6 +69,7 @@ export function besvarelseDok(a, prosa = {}) {
       dele.push(p("Der er ikke oplyst antal aktier og børskurs, så de børsrelaterede nøgletal kan ikke beregnes. Er virksomheden ikke børsnoteret, springes området over."));
       continue;
     }
+    if (om.indledning) dele.push(p(om.indledning, { run: { italics: true } }));
     dele.push(noegletalTabel(a, om), luft());
     for (const g of om.grupper) {
       dele.push(h(g.titel, HeadingLevel.HEADING_2));
@@ -77,9 +78,9 @@ export function besvarelseDok(a, prosa = {}) {
         if (tekst.trim()) dele.push(fed(`Trin ${t.nr} – ${t.navn}: `, tekst.replace(/\n+/g, " ")));
         if (t.nr === 2 && g.beretning?.length) dele.push(citat(g.beretning));
       }
-      const dk = prosa?.grupper?.[g.id]?.delkonklusion || g.delkonklusion;
-      if (dk) dele.push(fed("Delkonklusion: ", dk));
     }
+    const dk = prosa?.omraader?.[o.id]?.delkonklusion || om.delkonklusion;
+    if (dk) dele.push(fed(`Delkonklusion – ${om.navn.toLowerCase()}: `, dk.replace(/\n+/g, " ")));
   }
   dele.push(h("Samlet konklusion – Trin 4 Forretningsmodellen", HeadingLevel.HEADING_1));
   const t4 = prosa.konklusion?.trin4 || a.konklusion.udkast.join(" ");
@@ -121,16 +122,18 @@ export function vejledningDok(a, prosa = {}) {
     const om = a.omraader[o.id];
     dele.push(h(om.navn, HeadingLevel.HEADING_1));
     if (om.ikkeRelevant) { dele.push(p("Ikke relevant – der er ikke oplyst aktiedata.")); continue; }
+    if (om.indledning) dele.push(p(om.indledning, { run: { italics: true } }));
     for (const g of om.grupper) {
       dele.push(h(g.titel, HeadingLevel.HEADING_2));
       if (g.noegle.length) dele.push(fed("Det skal de finde (trin 1): ", ""), ...g.noegle.map(punkt));
-      if (g.delkonklusion) dele.push(fed("Delkonklusion: ", prosa?.grupper?.[g.id]?.delkonklusion || g.delkonklusion));
       if (g.trin2.length) dele.push(fed("Forklaringen (trin 2): ", ""), ...g.trin2.map(punkt));
       if (g.beretning?.length) dele.push(citat(g.beretning));
       if (g.trin3.length) dele.push(fed("Målestokkene (trin 3): ", ""), ...g.trin3.map(punkt));
       const fg = a.faldgruber.filter(f => f.gruppe === g.id);
       if (fg.length) dele.push(fed("Faldgruber at tage fat i: ", ""), ...fg.flatMap(faldgrubeAfsnit));
     }
+    const dk = prosa?.omraader?.[o.id]?.delkonklusion || om.delkonklusion;
+    if (dk) dele.push(fed("Delkonklusion: ", dk.replace(/\n+/g, " ")));
   }
 
   dele.push(h("Trin 4 – forretningsmodellen", HeadingLevel.HEADING_1));

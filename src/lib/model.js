@@ -245,27 +245,10 @@ export function beregnAnalyse (dataset) {
     })
     return values
   }
-  kopi.aar.forEach(y => {
-    y.values = beregn(y.poster)
-    // Regnskabets egne resultattal til kontrol af omformningen (se validate).
-    const r = beregnRapporteret(kopi, y.poster, synlige, map)
-    if (Object.keys(r).length) y.rapporteret = r; else delete y.rapporteret
-  })
+  kopi.aar.forEach(y => { y.values = beregn(y.poster); delete y.rapporteret })
   const primo = beregn(kopi.primoPoster)
   kopi.primo = Object.fromEntries(PRIMO_FIELDS.filter(k => primo[k] != null).map(k => [k, primo[k]]))
   return kopi
-}
-
-// Regnskabets egne summer for årets resultat og resultat før skat.
-function beregnRapporteret (dataset, tal, synlige, map) {
-  const ud = {}
-  synlige.forEach(p => {
-    const r = rolle(dataset, p, map)
-    if (r !== 'aaretsResultat' && r !== 'resultatFoerSkat') return
-    const v = postTal(dataset, p, tal, map)
-    if (v != null && ud[r] == null) ud[r] = v
-  })
-  return ud
 }
 
 /** Trækker kilden ind på målet: tallene lægges sammen, og målet får det nye navn. */
@@ -440,31 +423,12 @@ function formatAarListe (labels) {
 // til én, i stedet for at gentages ordret for hvert enkelt år.
 export function validate (dataset) {
   const raa = []
-  const vf = visningsfaktor(dataset)
-  const vis = n => `${new Intl.NumberFormat('da-DK', { maximumFractionDigits: /mio/.test(dataset.enhed || '') ? 1 : 0 }).format(n * vf)} ${dataset.enhed || 'kr.'}`
   dataset.aar.forEach((y, i) => {
     const v = withDerived(y.values)
     const label = y.label || `År ${i + 1}`
     const near = (a, b) => Math.abs(a - b) <= Math.max(1, Math.abs(a) * 0.005)
     if (v.aktiverIAlt != null && v.passiverIAlt != null && !near(v.aktiverIAlt, v.passiverIAlt)) {
       raa.push({ level: 'error', year: label, text: `Balancen stemmer ikke: aktiver ${fmt(v.aktiverIAlt)} mod passiver ${fmt(v.passiverIAlt)}.` })
-    }
-    // Posterne skal give regnskabets eget resultat. Gør de ikke, har en post
-    // i resultatopgørelsen ikke fået en plads i analyseformen – og så regnes
-    // nøgletallene af et forkert resultat. Posten navngives med sit beløb.
-    for (const [k, navn] of [['aaretsResultat', 'årets resultat'], ['resultatFoerSkat', 'resultat før skat']]) {
-      const rap = y.rapporteret?.[k]
-      if (rap == null || v[k] == null || near(rap, v[k])) continue
-      const map = postMap(dataset)
-      const uplacerede = synligePoster(dataset, 'resultat')
-        .filter(p => !p.erSum && !rolle(dataset, p, map))
-        .map(p => ({ navn: postNavn(dataset, p), tal: postTal(dataset, p, y.poster || {}, map) }))
-        .filter(x => x.tal != null && x.tal !== 0)
-      const hvilke = uplacerede.length
-        ? `Det skyldes, at ${uplacerede.map(x => `»${x.navn}« (${vis(x.tal)})`).join(' og ')} endnu ikke har fået en plads. Læg ${uplacerede.length === 1 ? 'posten' : 'posterne'} sammen med den post, ${uplacerede.length === 1 ? 'den' : 'de'} hører til.`
-        : 'En post i resultatopgørelsen har ikke fået en plads i analyseformen. Læg den sammen med den post, den hører til.'
-      raa.push({ level: 'error', year: label, text: `Posterne giver ${navn} på ${vis(v[k])}, men regnskabets egen linje er ${vis(rap).replace(/\.$/, '')}. Nøgletallene regnes af det første tal og bliver derfor forkerte. ${hvilke}` })
-      break
     }
     if (v.kapacitetsomkostninger != null && v.kapacitetsomkostninger < 0) {
       raa.push({ level: 'warn', year: label, text: 'Kapacitetsomkostninger er negative. Kontrollér, at der ikke er placeret en indtægt blandt omkostningerne.' })

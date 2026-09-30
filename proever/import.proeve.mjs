@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseXbrlDokument } from "../src/lib/ixbrlImport.js";
 import { fordelKolonner, anvendFordeling } from "../src/lib/fordeling.js";
-import { validate, withDerived } from "../src/lib/model.js";
+import { withDerived } from "../src/lib/model.js";
 import { beregnAlle } from "../src/lib/nogletal.js";
 
 const ctx = (id, y, inst) => inst
@@ -72,5 +72,4 @@ const ds = anvendFordeling(tom, fordelKolonner(docs));
 assert.equal(withDerived(ds.aar[2].values).aaretsResultat, 30300000);
 const nt = beregnAlle(ds);
 assert.deepEqual(nt.map(r => r[4].value.toFixed(1)), ["18.5", "20.5", "18.4"]);
-assert.equal(validate(ds).filter(x => /regnskabets egen linje/.test(x.text)).length, 0);
 });

@@ -950,6 +950,8 @@ function samletKonklusion(ctx, navn) {
 // Til underviseren: de vigtigste pointer og sammenhænge i hvert område – og
 // kæden, der binder områderne sammen. Kun tal fra analysen; ingen profil.
 
+const lille = t => (t ? t[0].toLowerCase() + t.slice(1) : t);
+const farveFor = b => (b === "forbedret" ? "op" : b === "forringet" ? "ned" : "");
 const pil = (ctx, nr) => {
   const b = bevaegelse(ctx, nr);
   return b === "stabil" ? "→" : ctx.serie(nr)[2] > ctx.serie(nr)[0] ? "↑" : "↓";
@@ -960,14 +962,6 @@ function vejledningsPointer(ctx, omraader) {
   const har = nr => ctx.sidst(nr) != null && ctx.serie(nr)[0] != null;
   const ag = ctx.sidst(1), ekf = ctx.sidst(4), r = ctx.sidst(5), g = ctx.sidst(6), mr = ctx.rente[2];
 
-  // Kæden: AG = OG × AOH → EKF (gearing) → soliditet → likviditet.
-  const led = [
-    [1, "Afkastningsgrad"], [2, "Overskudsgrad"], [3, "Aktivernes omsætningshastighed"],
-    [4, "Egenkapitalens forrentning"], [20, "Soliditetsgrad"], [23, "Likviditetsgrad I"],
-  ].filter(([nr]) => har(nr)).map(([nr, navn]) => ({
-    nr, navn, fra: v(ctx, nr, 0), til: v(ctx, nr), pil: pil(ctx, nr), bevaegelse: bevaegelse(ctx, nr),
-  }));
-
   const d = agDrivere(ctx);
   const driver = d ? (Math.abs(d.og) >= Math.abs(d.aoh) ? "overskudsgraden" : "aktivernes omsætningshastighed") : null;
   const [ko0, ko2] = mellemPer(ctx, "koAndel");
@@ -975,6 +969,53 @@ function vejledningsPointer(ctx, omraader) {
   const lager = ctx.serie(16), deb = ctx.serie(17), kred = ctx.serie(18);
   const netto = i => (lager[i] && deb[i] && kred[i] ? dage(lager[i]) + dage(deb[i]) - dage(kred[i]) : null);
   const ekSaetning = omraader.soliditet?.grupper.find(x => x.id === "sol")?.trin2.find(t => /^Egenkapitalen (faldt|voksede) .* i alt\./.test(t));
+
+  // To kæder, hvor hvert led forklarer det næste:
+  //   Rentabiliteten: OG × AOH → AG → EKF (gearingen er forbindelsen).
+  //   Risikoen: resultat − udbytte → egenkapital → soliditet, og
+  //             arbejdskapital + pengestrøm → likviditet.
+  const nt_led = (nr, navn) => (har(nr) ? { navn, fra: v(ctx, nr, 0), til: v(ctx, nr), pil: pil(ctx, nr), farve: farveFor(bevaegelse(ctx, nr)) } : null);
+  const beloebLed = (navn, a0, a2, godOp) => (a0 == null || a2 == null ? null : {
+    navn, fra: fmtBeloeb(a0, ctx.enh), til: fmtBeloeb(a2, ctx.enh),
+    pil: Math.abs(a2 - a0) <= Math.abs(a0) * 0.02 ? "→" : a2 > a0 ? "↑" : "↓",
+    farve: godOp == null || Math.abs(a2 - a0) <= Math.abs(a0) * 0.02 ? "" : (a2 > a0) === godOp ? "op" : "ned",
+  });
+  const V0 = ctx.V[0], V2 = ctx.V[2];
+  const betalt = ctx.udbytte.map(u => u?.betalt || 0).reduce((x, y) => x + y, 0);
+  const foreslaaet = ctx.udbytte.map(u => u?.foreslaaet || 0).reduce((x, y) => x + y, 0);
+  const udbLed = betalt || foreslaaet ? { navn: betalt ? "Udbytte betalt i perioden" : "Udbytte foreslået i perioden", fra: "", til: fmtBeloeb(betalt || foreslaaet, ctx.enh), pil: "", farve: "" } : null;
+  const dageLed = netto(0) != null && netto(2) != null ? { navn: "Pengene bundet i driften", fra: `${netto(0)} dage`, til: `${netto(2)} dage`, pil: Math.abs(netto(2) - netto(0)) < 3 ? "→" : netto(2) > netto(0) ? "↑" : "↓", farve: Math.abs(netto(2) - netto(0)) < 3 ? "" : netto(2) > netto(0) ? "ned" : "op" } : null;
+
+  const kaeder = [
+    {
+      id: "rentabilitet", titel: "Rentabiliteten: hvad tjener kapitalen?",
+      led: [nt_led(2, "Overskudsgrad"), nt_led(3, "× Aktivernes omsætningshastighed"), nt_led(1, "= Afkastningsgrad"), nt_led(4, "Egenkapitalens forrentning")].filter(Boolean),
+      forbindelser: [
+        har(1) && har(2) && har(3) ? `OG × AOH = AG: ${nt(ctx, 2)}, og ${nt(ctx, 3)}.${driver && bevaegelse(ctx, 1) !== "stabil" ? ` Det er især ${driver}, der har flyttet afkastningsgraden.` : ""}` : null,
+        ekf != null && ag != null && r != null ? `AG → EKF: ejerne får ${ekf >= ag ? "mere" : "mindre"} end afkastningsgraden (${fmtPct(ekf)} mod ${fmtPct(ag)}), fordi den lånte kapital koster ${fmtPct(r)}, hvilket er ${ag >= r ? "mindre" : "mere"} end den tjener${g != null ? `. Med en gearing på ${fmtX(g)} ${ag >= r ? "løfter" : "trækker"} gælden ejernes forrentning ${ag >= r ? "op" : "ned"}` : ""}.` : null,
+      ],
+    },
+    {
+      id: "soliditet", titel: "Soliditeten: hvad bliver i virksomheden?",
+      led: [beloebLed("Årets resultat", V0.aaretsResultat, V2.aaretsResultat, true), udbLed, beloebLed("Egenkapital", V0.egenkapital, V2.egenkapital, true), nt_led(20, "Soliditetsgrad")].filter(Boolean),
+      forbindelser: [
+        ekSaetning ? `Resultat − udbytte → egenkapital: ${ekSaetning.replace(/^Egenkapitalen/, "egenkapitalen")}` : null,
+        har(20) && V0.aktiverIAlt != null ? `Egenkapital → soliditet: soliditetsgraden er egenkapitalen i procent af aktiverne. ${saetning(postUdv(ctx, "egenkapital", "egenkapitalen"), postUdv(ctx, "aktiverIAlt", "aktiverne"))} Derfor ${bevaegelse(ctx, 20) === "stabil" ? "er soliditetsgraden stort set uændret" : `${verbum(ctx.serie(20)[0], ctx.sidst(20))} soliditetsgraden fra ${v(ctx, 20, 0)} til ${v(ctx, 20)}`}.` : null,
+      ],
+    },
+    {
+      id: "likviditet", titel: "Likviditeten: bliver overskuddet til penge?",
+      led: [dageLed, nt_led(19, "Pengestrøm fra driften i % af omsætningen"), nt_led(23, "Likviditetsgrad I"), nt_led(24, "Likviditetsgrad II")].filter(Boolean),
+      forbindelser: [
+        netto(2) != null ? `Arbejdskapital → pengestrøm: pengene er bundet i ${netto(2)} dage${netto(0) != null ? ` mod ${netto(0)} dage i ${ctx.aar[0]}` : ""}. ${netto(0) != null && netto(2) > netto(0) + 2 ? "Når bindingen bliver længere, bliver en større del af overskuddet stående i lager og debitorer i stedet for i kassen." : netto(0) != null && netto(2) < netto(0) - 2 ? "Når bindingen bliver kortere, frigøres penge ud over overskuddet." : "Bindingen er stort set uændret."}` : null,
+        har(19) ? `Pengestrøm → likviditet: ${lille(DELKONKLUSION.cf(ctx))}` : null,
+        har(23) || har(24) ? `Likviditetsgraderne: ${lille(DELKONKLUSION.likviditet(ctx))}` : null,
+        har(23) && har(24) && bevaegelse(ctx, 23) !== "stabil" && bevaegelse(ctx, 24) !== "stabil" && bevaegelse(ctx, 23) !== bevaegelse(ctx, 24)
+          ? `${stort(nt(ctx, 23))}, men ${nt(ctx, 24)}. Forskellen på dem er varelageret: ${bevaegelse(ctx, 24) === "forbedret" ? "det er vokset, så pengene står på lageret i stedet for i kassen" : "det er faldet, så lageret dækker mindre af den kortfristede gæld"}.`
+          : null,
+      ],
+    },
+  ].map(k => ({ ...k, forbindelser: ren(k.forbindelser.filter(Boolean)) })).filter(k => k.led.length);
 
   const sammenhaenge = {
     rentabilitet: [
@@ -1002,7 +1043,12 @@ function vejledningsPointer(ctx, omraader) {
   };
   const ud = {};
   for (const [id, liste] of Object.entries(sammenhaenge)) ud[id] = ren(liste.filter(Boolean));
-  return { kaede: led, sammenhaenge: ud };
+  return {
+    kaeder,
+    // Hvordan kæderne hænger sammen: resultatet er bindeleddet.
+    bindeled: "Rentabiliteten skaber årets resultat. Det, der ikke udloddes, bliver i egenkapitalen og styrker soliditeten. Det, der bindes i lager og debitorer, bliver ikke til penge og trækker på likviditeten.",
+    sammenhaenge: ud,
+  };
 }
 
 /** "på linje med det normale" / "under det normale" / "over det normale". */

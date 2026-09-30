@@ -344,3 +344,6 @@ details summary { cursor: pointer; font-size: 13px; color: var(--petrol); margin
 .kaede-led.ned { border-left-color: var(--ned); }
 .kaede-navn { font-size: 12px; color: var(--daempet); }
 .kaede-tal { font-family: 'IBM Plex Mono', monospace; font-size: 14px; white-space: nowrap; }
+.kaede-blok { margin-bottom: 12px; }
+.kaede-blok h4 { margin: 12px 0 4px; }
+.kaede-forklaring { margin: 0 0 6px; }

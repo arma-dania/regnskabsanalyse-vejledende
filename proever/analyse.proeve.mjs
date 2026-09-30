@@ -202,7 +202,17 @@ test("underviservejledningens kæder: rentabilitet, soliditet og likviditet med 
   assert.match(ren.forbindelser.join(" "), /AG → EKF/);
   assert.match(sol.forbindelser.join(" "), /Egenkapital → soliditet: soliditetsgraden er egenkapitalen i procent af aktiverne/);
   assert.match(lik.forbindelser.join(" "), /Arbejdskapital → pengestrøm/);
-  assert.match(a.pointer.bindeled, /årets resultat/);
+  assert.match(a.pointer.bindeled, /Årets resultat/);
+});
+
+test("det store billede: én række med tal og én pointe pr. område", () => {
+  const a = analyser(EKSEMPEL);
+  assert.deepEqual(a.pointer.overblik.map(r => r.id), ["rentabilitet", "soliditet", "likviditet"]);
+  for (const r of a.pointer.overblik) {
+    assert.ok(r.tal.length >= 1 && r.tal.length <= 2);
+    assert.ok(r.pointe.length > 20 && r.pointe.length < 400, r.pointe);
+  }
+  assert.match(a.pointer.overblik[0].pointe, /EKF ligger (over|under) AG/);
 });
 
 test("afkrydsede indekstal bruges i analysen og står i tabellen", () => {

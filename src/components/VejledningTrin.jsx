@@ -15,6 +15,7 @@ const FORLOEB = [
 export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) {
   const k = a.konklusion
   const kaeder = a.pointer?.kaeder || []
+  const overblik = a.pointer?.overblik || []
   const samlet = (prosa.konklusion?.samlet || k.samlet.join('\n') || k.udkast[0] || '').split(/\n+/).filter(x => x.trim())
   return (
     <>
@@ -31,26 +32,45 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
 
       <section className="kort">
         <h3>Det store billede</h3>
-        {kaeder.length > 0 && (
+        {overblik.length > 0 && (
           <>
-            <p className="hjaelp" style={{ marginTop: 0 }}><strong>Sådan hænger det sammen:</strong> {a.pointer.bindeled}</p>
-            {kaeder.map(kd => (
-              <div key={kd.id} className="kaede-blok">
-                <h4>{kd.titel}</h4>
-                <div className="kaede">
-                  {kd.led.map((x, i) => (
-                    <div key={i} className="kaede-led-holder">
-                      {i > 0 && !/^[×=]/.test(x.navn) && <span className="kaede-pil">→</span>}
-                      <div className={'kaede-led ' + x.farve}>
-                        <span className="kaede-navn">{x.navn}</span>
-                        <span className="kaede-tal">{x.fra} {x.pil} {x.til}</span>
+            <table className="data overblik">
+              <thead><tr><th>Område</th><th>Nøgletal ({a.aar[0]} → {a.aar[2]})</th><th>Pointe</th></tr></thead>
+              <tbody>
+                {overblik.map(r => (
+                  <tr key={r.id}>
+                    <td><strong>{kaeder.find(k => k.id === r.id)?.titel.split(':')[0]}</strong><br /><span className="hjaelp">{r.spoergsmaal}</span></td>
+                    <td className="overblik-tal">
+                      {r.tal.map((x, i) => (
+                        <div key={i}><span className="kaede-navn">{x.navn}</span> <span className={'kaede-tal ' + x.farve}>{x.fra} {x.pil} {x.til}</span></div>
+                      ))}
+                    </td>
+                    <td>{r.pointe}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="hjaelp">{a.pointer.bindeled}</p>
+            <details>
+              <summary>Kæderne led for led</summary>
+              {kaeder.map(kd => (
+                <div key={kd.id} className="kaede-blok">
+                  <h4>{kd.titel}</h4>
+                  <div className="kaede">
+                    {kd.led.map((x, i) => (
+                      <div key={i} className="kaede-led-holder">
+                        {i > 0 && !/^[×=]/.test(x.navn) && <span className="kaede-pil">→</span>}
+                        <div className={'kaede-led ' + x.farve}>
+                          <span className="kaede-navn">{x.navn}</span>
+                          <span className="kaede-tal">{x.fra} {x.pil} {x.til}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  <ul className="kaede-forklaring">{kd.forbindelser.map((f, i) => <li key={i}>{f}</li>)}</ul>
                 </div>
-                <ul className="kaede-forklaring">{kd.forbindelser.map((f, i) => <li key={i}>{f}</li>)}</ul>
-              </div>
-            ))}
+              ))}
+            </details>
             <h4>Den samlede konklusion</h4>
           </>
         )}

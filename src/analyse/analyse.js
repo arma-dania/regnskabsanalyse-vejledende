@@ -914,6 +914,34 @@ const OMRAADE_KONKLUSION = {
   boers: ctx => [DELKONKLUSION.eps(ctx), DELKONKLUSION.marked(ctx)],
 };
 
+/**
+ * Den samlede konklusion på tværs af de fem analyseområder. Den bygger kun
+ * på nøgletallene og de faste målestokke (sidste år, markedsrenten og
+ * tommelfingerreglerne) og står derfor, uanset om der er valgt en
+ * forretningsmodel. Tre afsnit: udviklingen og dens årsager, ejernes
+ * forrentning, og risikoen.
+ */
+function samletKonklusion(ctx, navn) {
+  const utenProfil = t => (t || "").replace(/\s*(Den|Anlægsgraden) ligger [^.]* for forretningsmodellen\./g, "");
+  const ag = ctx.serie(1), mr = ctx.rente[2];
+  if (ag[2] == null) return [];
+  const b = bevaegelse(ctx, 1), sol = ctx.sidst(20);
+  const over = ag[2] >= mr;
+  const retning = b === "forbedret" && over ? "positiv" : b === "forringet" || !over ? (b === "forbedret" || (b === "stabil" && over) ? "blandet" : "negativ") : "stabil";
+  const tekst = {
+    positiv: "positiv: driften forrenter kapitalen bedre end før og over markedsrenten",
+    negativ: `negativ: ${b === "forringet" ? "driften forrenter kapitalen dårligere end før" : "driften forrenter kapitalen stort set som før"}${over ? ", selv om den stadig ligger over markedsrenten" : " og under markedsrenten"}`,
+    blandet: `blandet: ${over ? "driften forrenter kapitalen over markedsrenten" : "afkastningsgraden er forbedret, men ligger under markedsrenten"}${sol != null && sol < 30 ? ", men soliditeten er under tommelfingerreglen" : ""}`,
+    stabil: "stabil: driften forrenter kapitalen stort set som før og over markedsrenten",
+  }[retning];
+  const aarsag = [ctx.sidst(2) != null ? utenProfil(DELKONKLUSION.og(ctx)) : null, ctx.sidst(3) != null ? utenProfil(DELKONKLUSION.aoh(ctx)) : null];
+  return ren([
+    [`Samlet set er udviklingen i ${navn} fra ${ctx.aar[0]} til ${ctx.aar[2]} ${tekst}.`, DELKONKLUSION.ag(ctx), ...aarsag, DELKONKLUSION.indeks(ctx), DELKONKLUSION.robusthed(ctx)].filter(Boolean).join(" "),
+    [DELKONKLUSION.ekf(ctx)].filter(Boolean).join(" "),
+    [DELKONKLUSION.sol(ctx), DELKONKLUSION.kapbind(ctx), DELKONKLUSION.likviditet(ctx), ctx.sidst(19) != null ? DELKONKLUSION.cf(ctx) : null].filter(Boolean).join(" "),
+  ].filter(Boolean));
+}
+
 /** "på linje med det normale" / "under det normale" / "over det normale". */
 function profilDom(ctx, noegle) {
   const p = ctx.profil;
@@ -1022,5 +1050,5 @@ function konkluder(ctx) {
     profil ? `Hvilke nøgletal afslører, at det er en ${profil.navn.toLowerCase()}? Holder de tal stadig?` : "Tjener virksomheden penge på marginen eller på volumen? Hvad siger udviklingen i OG og AOH om det?",
     profil ? profil.kendetegn : "Konklusionen skal sige, om modellen holder, presses eller skifter, og slutte med en anbefaling, der følger af tallene.");
 
-  return { styrker, svagheder, anbefalinger, afvigelser, model, udkast };
+  return { styrker, svagheder, anbefalinger, afvigelser, model, udkast, samlet: samletKonklusion(ctx, navn) };
 }

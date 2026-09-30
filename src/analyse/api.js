@@ -70,6 +70,7 @@ export function skrivKonklusion(a, prosa, kode) {
     svagheder: k.svagheder.join("\n"),
     anbefalinger: k.anbefalinger.join("\n"),
     afvigelser: k.afvigelser.join("\n"),
+    samlet: k.samlet.join("\n"),
     udkast: k.udkast.join(" "),
     beretning: a.brugCitater ? a.beretning || "" : "",
   }, kode);

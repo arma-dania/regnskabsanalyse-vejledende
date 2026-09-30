@@ -13,12 +13,12 @@ const h = (tekst, niveau) => new Paragraph({ heading: niveau, spacing: { before:
 const fed = (etiket, tekst) => new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: etiket, bold: true }), new TextRun({ text: tekst })] });
 const punkt = tekst => new Paragraph({ bullet: { level: 0 }, spacing: { after: 60 }, children: [new TextRun(tekst)] });
 
-function tabel(hoved, raekker, bredder) {
+function tabel(hoved, raekker, bredder, venstre = false) {
   const celle = (t, i, erHoved) => new TableCell({
     width: bredder ? { size: bredder[i], type: WidthType.PERCENTAGE } : undefined,
     shading: erHoved ? { type: ShadingType.CLEAR, fill: VIN, color: "auto" } : undefined,
     margins: { top: 40, bottom: 40, left: 80, right: 80 },
-    children: [new Paragraph({ alignment: i === 0 ? AlignmentType.LEFT : AlignmentType.RIGHT, children: [new TextRun({ text: String(t), bold: erHoved, color: erHoved ? "FFFFFF" : undefined, size: 18 })] })],
+    children: String(t).split("\n").map(linje => new Paragraph({ alignment: i === 0 || venstre ? AlignmentType.LEFT : AlignmentType.RIGHT, children: [new TextRun({ text: linje, bold: erHoved, color: erHoved ? "FFFFFF" : undefined, size: 18 })] })),
   });
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -112,18 +112,25 @@ export function vejledningBoern(a, prosa = {}) {
 
     h("Det store billede", HeadingLevel.HEADING_1),
   ];
+  const overblik = a.pointer?.overblik || [];
+  if (overblik.length) {
+    dele.push(tabel(["Område", `Nøgletal (${a.aar[0]} → ${a.aar[2]})`, "Pointe"],
+      overblik.map(r => [`${kaeder.find(k => k.id === r.id)?.titel.split(":")[0]} – ${r.spoergsmaal}`, r.tal.map(x => `${x.navn}: ${x.fra} ${x.pil} ${x.til}`).join("\n"), r.pointe]), [24, 30, 46], true),
+      p(a.pointer.bindeled, { run: { italics: true } }), luft());
+  }
+  dele.push(h("Den samlede konklusion", HeadingLevel.HEADING_2),
+    ...(prosa.konklusion?.samlet || k.samlet.join("\n") || k.udkast[0]).split(/\n+/).filter(x => x.trim()).map(x => p(x.trim())));
+  if (k.styrker.length) dele.push(fed("Styrker: ", ""), ...k.styrker.map(punkt));
+  if (k.svagheder.length) dele.push(fed("Svagheder: ", ""), ...k.svagheder.map(punkt));
+
   if (kaeder.length) {
-    dele.push(h("Sådan hænger det sammen", HeadingLevel.HEADING_2), p(a.pointer.bindeled, { run: { italics: true } }));
+    dele.push(h("Kæderne led for led", HeadingLevel.HEADING_2));
     for (const kd of kaeder) {
       dele.push(h(kd.titel, HeadingLevel.HEADING_3),
         tabel(["Led", a.aar[0], a.aar[2], "Retning"], kd.led.map(x => [x.navn, x.fra, x.til, x.pil]), [52, 18, 18, 12]),
         ...kd.forbindelser.map(punkt), luft());
     }
   }
-  dele.push(h("Den samlede konklusion", HeadingLevel.HEADING_2),
-    ...(prosa.konklusion?.samlet || k.samlet.join("\n") || k.udkast[0]).split(/\n+/).filter(x => x.trim()).map(x => p(x.trim())));
-  if (k.styrker.length) dele.push(fed("Styrker: ", ""), ...k.styrker.map(punkt));
-  if (k.svagheder.length) dele.push(fed("Svagheder: ", ""), ...k.svagheder.map(punkt));
 
   for (const o of OMRAADER) {
     const om = a.omraader[o.id];

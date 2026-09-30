@@ -347,6 +347,12 @@ details summary { cursor: pointer; font-size: 13px; color: var(--petrol); margin
 .kaede-blok { margin-bottom: 12px; }
 .kaede-blok h4 { margin: 12px 0 4px; }
 .kaede-forklaring { margin: 0 0 6px; }
+.overblik td { vertical-align: top; }
+.overblik td:first-child { width: 22%; }
+.overblik-tal { width: 30%; }
+.overblik-tal div { margin-bottom: 4px; }
+.overblik .kaede-tal.op { color: var(--op); }
+.overblik .kaede-tal.ned { color: var(--ned); }
 .hovedpointe { padding: 12px 16px; }
 .hovedpointe p { margin: 0 0 10px; line-height: 1.55; }
 .hovedpointe p:last-child { margin-bottom: 0; }

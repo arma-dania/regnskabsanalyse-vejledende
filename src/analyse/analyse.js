@@ -1052,6 +1052,34 @@ function vejledningsPointer(ctx, omraader) {
     },
   ].map(k => ({ ...k, forbindelser: ren(k.forbindelser.filter(Boolean)) })).filter(k => k.led.length);
 
+  // Overblikket: ét spørgsmål, de to vigtigste tal og én pointe pr. kæde.
+  const rolig = nr => bevaegelse(ctx, nr) === "stabil";
+  const pointe = {
+    rentabilitet: ren([
+      har(1) ? `${stort(nt(ctx, 1))}${driver && !rolig(1) ? ` – især på grund af ${driver}` : ""}.` : null,
+      ekf != null && ag != null && r != null ? `EKF ligger ${ekf >= ag ? "over" : "under"} AG, fordi den lånte kapital koster ${fmtPct(r)} – ${ag >= r ? "mindre" : "mere"} end den tjener.` : null,
+    ]).join(" "),
+    soliditet: ren([
+      har(20) ? `${stort(nt(ctx, 20))}.` : null,
+      V0.egenkapital != null && V0.aktiverIAlt != null
+        ? saetning(`${postUdv(ctx, "egenkapital", "egenkapitalen")}${betalt ? ` efter ${fmtBeloeb(betalt, ctx.enh)} i udbytte` : ""}`, postUdv(ctx, "aktiverIAlt", "aktiverne"))
+        : null,
+    ]).join(" "),
+    likviditet: ren([
+      har(24) ? `${stort(nt(ctx, 24))}.` : har(23) ? `${stort(nt(ctx, 23))}.` : null,
+      netto(0) != null && netto(2) != null && Math.abs(netto(2) - netto(0)) > 2
+        ? `Pengene er bundet ${netto(2) > netto(0) ? "længere" : "kortere"} i driften (${netto(0)} → ${netto(2)} dage), så ${netto(2) > netto(0) ? "en større del af overskuddet står i lager og debitorer" : "der frigøres penge ud over overskuddet"}.`
+        : har(19) ? `${stort(nt(ctx, 19))}.` : null,
+    ]).join(" "),
+  };
+  const HOVED = { rentabilitet: [[1, "AG"], [4, "EKF"]], soliditet: [[20, "Soliditetsgrad"]], likviditet: [[24, "Likviditetsgrad II"], [19, "Pengestrøm i % af oms."]] };
+  const SPOERG = { rentabilitet: "Tjener kapitalen nok?", soliditet: "Kan virksomheden tåle tab?", likviditet: "Kan den betale regningerne?" };
+  const overblik = kaeder.map(k => ({
+    id: k.id, spoergsmaal: SPOERG[k.id],
+    tal: HOVED[k.id].map(([nr, navn]) => nt_led(nr, navn)).filter(Boolean),
+    pointe: pointe[k.id],
+  }));
+
   const sammenhaenge = {
     rentabilitet: [
       har(1) && har(2) && har(3) ? `AG = OG × AOH: ${nt(ctx, 2)}, og ${nt(ctx, 3)}.${driver && bevaegelse(ctx, 1) !== "stabil" ? ` Det er især ${driver}, der har flyttet afkastningsgraden.` : ""}` : null,
@@ -1079,9 +1107,9 @@ function vejledningsPointer(ctx, omraader) {
   const ud = {};
   for (const [id, liste] of Object.entries(sammenhaenge)) ud[id] = ren(liste.filter(Boolean));
   return {
-    kaeder,
+    kaeder, overblik,
     // Hvordan kæderne hænger sammen: resultatet er bindeleddet.
-    bindeled: "Rentabiliteten skaber årets resultat. Det, der ikke udloddes, bliver i egenkapitalen og styrker soliditeten. Det, der bindes i lager og debitorer, bliver ikke til penge og trækker på likviditeten.",
+    bindeled: "Årets resultat binder de tre sammen: det, der ikke udloddes, styrker soliditeten, og det, der bindes i lager og debitorer, bliver ikke til penge.",
     sammenhaenge: ud,
   };
 }

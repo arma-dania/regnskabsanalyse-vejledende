@@ -1,4 +1,4 @@
-import { udtraekBeretning, beretningFraBegreber, udbytteFraFakta } from './beretning.js'
+import { udtraekBeretning, beretningFraBegreber, udbytteFraFakta, udbytteFraRaekker, flet } from './beretning.js'
 
 // Regnskabet indlæses, som det står: hver post i resultatopgørelse, balance
 // og pengestrømsopgørelse bliver sin egen række med regnskabets eget navn,
@@ -379,13 +379,20 @@ export function parseXbrlDokument (tekst, kilde = '', ParserClass = globalThis.D
 
   // Udbytte læses uanset opgørelse – det står typisk i egenkapitalen, i
   // resultatdisponeringen eller i pengestrømsopgørelsen.
+  // Først ud fra XBRL-begrebet; derefter ud fra rækkens navn, så udbytte i
+  // noterne (fx resultatdisponeringen) også findes, når begrebet ikke hedder
+  // noget med "Dividend".
   const foer = { ...diagnostik }
   const udbytteFakta = alle
     .filter(el => /dividend/i.test(el.getAttribute('name') || el.nodeName))
     .map(laesFakta)
     .filter(Boolean)
+  const udbytteRaekker = alle
+    .filter(el => localName(el) === 'nonfraction' && /udbytte/i.test(raekkenavn(el) || ''))
+    .map(el => { const f = laesFakta(el); return f ? { ...f, label: raekkenavn(el) } : null })
+    .filter(Boolean)
   Object.assign(diagnostik, foer)
-  const udbytte = udbytteFraFakta(udbytteFakta)
+  const udbytte = flet(udbytteFraFakta(udbytteFakta), udbytteFraRaekker(udbytteRaekker))
 
   diagnostik.antalUnikkeIkkeGenkendte = ikkeGenkendteNavne.size
   diagnostik.ikkeGenkendteNavne = [...ikkeGenkendteNavne.entries()]

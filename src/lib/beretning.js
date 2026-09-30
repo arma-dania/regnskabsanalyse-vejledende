@@ -69,10 +69,15 @@ export function udbytteFraFakta (fakta) {
   return ud
 }
 
+// Linjer i resultatdisponering, egenkapitalopgørelse, pengestrømsopgørelse
+// og noter. "Udbytte" alene står typisk i resultatdisponeringen og er årets
+// foreslåede udbytte; det bruges kun, hvis intet mere præcist er fundet.
 const UDBYTTELINJE = [
-  [/^(foreslået udbytte|udbytte for regnskabsåret|foreslået ordinært udbytte)/i, 'foreslaaet'],
-  [/^(betalt udbytte|udbetalt udbytte|udloddet udbytte)/i, 'betalt']
+  [/^(foreslået (ordinært |ekstraordinært )?udbytte|udbytte for (regnskabs)?året|forslag til udbytte|foreslås udbetalt)/i, 'foreslaaet'],
+  [/^(betalt udbytte|udbetalt udbytte|udloddet udbytte|ekstraordinært udbytte|udbytte(,)? (betalt|udbetalt|udloddet))/i, 'betalt'],
+  [/^udbytte$/i, 'foreslaaet', true]
 ]
+const IKKE_UDBYTTELINJE = /pr\.?\s*aktie|per share|modtaget|fra (datter|tilknyttede|associerede|kapitalinteresser)/i
 
 /**
  * Udbytte fra PDF-tekstlinjer. De to sidste tal i linjen er regnskabsåret og
@@ -80,9 +85,13 @@ const UDBYTTELINJE = [
  */
 export function udbytteFraLinjer (linjer, aarstal, laesTal) {
   const ud = {}
+  const svage = []
   for (const linje of linjer) {
-    const fund = UDBYTTELINJE.find(([re]) => re.test(linje.trim()))
+    const label = linje.replace(/\s+\(?-?[\d.,()\s]+$/, '').replace(/\s+\d+$/, '').trim()
+    if (IKKE_UDBYTTELINJE.test(label)) continue
+    const fund = UDBYTTELINJE.find(([re]) => re.test(label) || re.test(linje.trim()))
     if (!fund) continue
+    if (fund[2]) { svage.push(linje); continue }
     const tal = (linje.match(/\(?-?\d[\d.]*(,\d+)?\)?/g) || [])
       .map(laesTal)
       .filter(n => n != null && Math.abs(n) > 0 && !(Number.isInteger(n) && n >= 1990 && n <= 2100))
@@ -94,5 +103,47 @@ export function udbytteFraLinjer (linjer, aarstal, laesTal) {
       ud[aar][fund[1]] ??= Math.abs(v)
     })
   }
+  if (svage.length) {
+    const svagt = udbytteFraLinjer(svage.map(l => l.replace(/^udbytte/i, 'Foreslået udbytte')), aarstal, laesTal)
+    for (const [aar, u] of Object.entries(svagt)) {
+      ud[aar] ??= {}
+      ud[aar].foreslaaet ??= u.foreslaaet
+    }
+  }
+  return ud
+}
+
+/**
+ * Udbytte fra rækkenavnene i et iXBRL-dokument – til noter, hvor tallet er
+ * mærket med et begreb uden "Dividend" i navnet. rækker: [{ label, dato, vaerdi }].
+ */
+export function udbytteFraRaekker (raekker) {
+  const ud = {}
+  const svage = {}
+  for (const r of raekker) {
+    const label = String(r.label || '').trim()
+    if (!/udbytte/i.test(label) || IKKE_UDBYTTELINJE.test(label)) continue
+    const fund = UDBYTTELINJE.find(([re]) => re.test(label))
+    if (!fund) continue
+    const aar = r.dato.slice(0, 4)
+    const maal = fund[2] ? svage : ud
+    maal[aar] ??= {}
+    maal[aar][fund[1]] ??= Math.abs(r.vaerdi)
+  }
+  for (const [aar, u] of Object.entries(svage)) {
+    ud[aar] ??= {}
+    ud[aar].foreslaaet ??= u.foreslaaet
+  }
+  return ud
+}
+
+/** Lægger udbytte fra flere kilder sammen; den første kilde vinder. */
+export function flet (...kilder) {
+  const ud = {}
+  for (const k of kilder)
+    for (const [aar, u] of Object.entries(k || {})) {
+      ud[aar] ??= {}
+      for (const [art, v] of Object.entries(u)) ud[aar][art] ??= v
+    }
   return ud
 }

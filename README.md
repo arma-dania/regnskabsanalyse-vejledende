@@ -80,10 +80,22 @@ Når regnskaberne indlæses (CVR-opslag, iXBRL eller PDF), læses også
   m.m.). Har beretningen ingen overskrift, bruges de XBRL-mærkede tekstafsnit
   (fx "Udviklingen i aktiviteter og økonomiske forhold"). Beretningen fra det
   nyeste regnskab bruges.
-- **Udbyttet** læses fra XBRL-begreberne for foreslået udbytte (fx
-  `ProposedDividendRecognisedInEquity`) og betalt udbytte (fx `DividendsPaid`),
-  både i den danske taksonomi og i IFRS – og fra PDF-linjer som "Foreslået
-  udbytte" og "Betalt udbytte".
+- **Udbyttet** læses fra hele regnskabet – også noterne (resultatdisponering,
+  egenkapitalopgørelse, pengestrømsopgørelse): fra XBRL-begreberne for
+  foreslået udbytte (fx `ProposedDividendRecognisedInEquity`) og betalt udbytte
+  (fx `DividendsPaid`), både i den danske taksonomi og i IFRS; fra rækkens navn,
+  når begrebet ikke hedder noget med "Dividend"; og fra PDF-linjer som
+  "Foreslået udbytte", "Udloddet udbytte" og "Udbytte" i resultatdisponeringen.
+  Udbytte pr. aktie og modtaget udbytte sorteres fra.
+
+**Samme enhed i alle år** (`src/lib/enheder.js`). Hvert indlæst regnskab
+regnes om til kroner, før årene fordeles. Derefter holdes de år, der står i to
+regnskaber, op mod hinanden (balancesum, omsætning, egenkapital). Afviger de
+med en faktor 1.000 eller 1.000.000, er enheden gættet forkert, og regnskabet
+rettes – et XBRL-regnskab regnes for sikkert, ellers rettes det ældste til det
+nyeste – og der vises en besked. Andre afvigelser i balancesummen vises som en
+advarsel. En PDF's enhed gættes ud fra linjer som "Beløb i t.kr.", så en enkelt
+"80 mio. kr." i ledelsesberetningen ikke afgør det.
 
 I trin 4 kan begge ses og rettes under *Ledelsesberetning og udbytte* –
 fx hvis importen ikke fandt udbyttet, eller beretningen skal indsættes i
@@ -292,6 +304,7 @@ src/lib/exportWord.js   Rapport med tabeller, grafer og kommentarfelter
 src/lib/omformning.js   Forslag til sammenlægning af poster i analyseformen
 src/analyse/fraDataset.js  Broen fra nøgletallene i trin 3 til analysen (plus beretning og udbytte)
 src/lib/beretning.js       Ledelsesberetning og udbytte fra det indlæste regnskab
+src/lib/enheder.js         Samme enhed i alle år: omregning, kontrol og rettelse
 src/analyse/analyse.js     Analysemotoren: trappen pr. nøgletal og gruppe, faldgruber, trin 4-udkast
 src/analyse/grupper.js     Hvilke nøgletal der skrives op ad trappen sammen
 src/analyse/beregning.js   Mellemregninger og formatering

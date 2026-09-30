@@ -1,6 +1,7 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import { FIELD_MAP } from './model.js'
 import { udtraekBeretning, udbytteFraLinjer } from './beretning.js'
+import { gaetEnhed } from './enheder.js'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
@@ -67,12 +68,6 @@ function linjerFraSide (indhold) {
   return [...rows.entries()]
     .sort((a, b) => b[0] - a[0])
     .map(([, items]) => items.sort((a, b) => a.x - b.x).map(i => i.str).join(' ').replace(/\s+/g, ' ').trim())
-}
-
-function gaetEnhed (tekst) {
-  if (/mio\.?\s*kr/i.test(tekst)) return 'mio. kr.'
-  if (/(t\.?\s*kr|1\.000\s*kr|tusinde kr)/i.test(tekst)) return '1.000 kr.'
-  return 'kr.'
 }
 
 function gaetAarstal (tekst) {

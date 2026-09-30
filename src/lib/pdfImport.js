@@ -1,6 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import { FIELD_MAP } from './model.js'
-import { udtraekBeretning, udbytteFraLinjer } from './beretning.js'
+import { udtraekBeretning, udbytteFraLinjer, UDBYTTE_UDGAVE } from './beretning.js'
 import { gaetEnhed } from './enheder.js'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
@@ -134,6 +134,7 @@ export async function importerPdf (file) {
     enhed: gaetEnhed(helTekst),
     beretning,
     udbytte,
+    udbytteUdgave: UDBYTTE_UDGAVE,
     poster,
     kolonner: [
       { navn: aarstal[0] ? String(aarstal[0]) : 'Regnskabsår', values: kolonner[0] },

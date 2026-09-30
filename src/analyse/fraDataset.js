@@ -3,6 +3,7 @@
 
 import { iVisningsenhed, withDerived, enhedFaktor } from "../lib/model.js";
 import { beregnAlle } from "../lib/nogletal.js";
+import { UDBYTTE_UDGAVE } from "../lib/beretning.js";
 
 // Nøgletalsappens enhed ("1.000 kr.") i analysens korte form ("t.kr.").
 const kortEnhed = e => (/mio/i.test(e) ? "mio. kr." : /1\.?000|t\.?kr/i.test(e) ? "t.kr." : "kr.");
@@ -31,17 +32,20 @@ export function fraFund(fund = [], aar = [], visEnhed = "") {
   const docs = [...fund].sort((a, b) => hovedaar(b) - hovedaar(a));
   const beretning = docs.find(d => d.beretning)?.beretning || "";
   const faktor = d => enhedFaktor(d.enhed || "kr.") / enhedFaktor(visEnhed);
+  // Udbytte fra regnskaber indlæst med en ældre udgave af udbyttelæsningen
+  // bruges ikke – de skal indlæses igen.
+  const foraeldet = docs.some(d => d.udbytte && Object.keys(d.udbytte).length && d.udbytteUdgave !== UDBYTTE_UDGAVE);
   const udbytte = aar.map(y => {
     const ud = { foreslaaet: null, betalt: null };
     const kilder = [...docs].sort((a, b) => (String(hovedaar(b)) === y) - (String(hovedaar(a)) === y));
     for (const d of kilder)
       for (const art of ["foreslaaet", "betalt"])
-        if (ud[art] == null && d.udbytte?.[y]?.[art] != null) ud[art] = d.udbytte[y][art] * faktor(d);
+        if (d.udbytteUdgave === UDBYTTE_UDGAVE && ud[art] == null && d.udbytte?.[y]?.[art] != null) ud[art] = d.udbytte[y][art] * faktor(d);
     // 0 betyder, at regnskabet udtrykkeligt siger "intet udbytte".
     for (const art of ["foreslaaet", "betalt"]) if (ud[art] === 0) ud[art] = null;
     return ud;
   });
-  return { beretning, udbytte };
+  return { beretning, udbytte, udbytteForaeldet: foraeldet };
 }
 
 /**

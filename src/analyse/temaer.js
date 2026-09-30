@@ -1,6 +1,6 @@
 // Formuleringstrappen og temaerne – samme ordlyd som træningsappen
 // (netlify/functions/lib/trappe.mjs i Regnskabsanalyse), så den vejledende
-// besvarelse og underviservejledningen taler samme sprog som feedbacken, de
+// besvarelse og underviseroverblikket taler samme sprog som feedbacken, de
 // studerende får. Retter du dér, så ret også her.
 
 export const TRIN = [

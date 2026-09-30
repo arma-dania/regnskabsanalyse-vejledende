@@ -24,7 +24,7 @@ const TRIN = [
   { id: 2, navn: 'Analyseform' },
   { id: 3, navn: 'Nøgletal og grafer' },
   { id: 4, navn: 'Vejledende besvarelse' },
-  { id: 5, navn: 'Underviservejledning' }
+  { id: 5, navn: 'Underviseroverblik' }
 ]
 
 export default function App () {
@@ -106,7 +106,7 @@ export default function App () {
       // Hentes først ved klik, så resten af appen ikke venter på det.
       const { besvarelseDocx, vejledningDocx } = await import('./analyse/word.js')
       const blob = hvad === 'besvarelse' ? await besvarelseDocx(analyse, gyldigProsa) : await vejledningDocx(analyse, gyldigProsa)
-      const navn = `${hvad === 'besvarelse' ? 'Vejledende besvarelse' : 'Underviservejledning'} – ${analyse.navn.replace(/[\\/:*?"<>|]/g, '')}.docx`
+      const navn = `${hvad === 'besvarelse' ? 'Vejledende besvarelse' : 'Underviseroverblik'} – ${analyse.navn.replace(/[\\/:*?"<>|]/g, '')}.docx`
       const { saveAs } = await import('file-saver')
       saveAs(blob, navn)
       setKvittering(`${navn} er hentet.`)
@@ -189,7 +189,7 @@ export default function App () {
               {wordValg && (
                 <div className="word-valg" role="dialog" aria-label="Indhold i Word-dokumentet">
                   <strong>Word-dokumentet skal indeholde</strong>
-                  {[['noegletal', 'Nøgletal og grafer', true], ['analyse', 'Analyse (vejledende besvarelse)', !!analyse], ['vejledning', 'Underviservejledning', !!analyse]].map(([id, navn, mulig]) => (
+                  {[['noegletal', 'Nøgletal og grafer', true], ['analyse', 'Analyse (vejledende besvarelse)', !!analyse], ['vejledning', 'Underviseroverblik', !!analyse]].map(([id, navn, mulig]) => (
                     <label key={id} className={'afkryds' + (mulig ? '' : ' slukket')}>
                       <input type="checkbox" disabled={!mulig} checked={mulig && !!wordValg[id]} onChange={e => setWordValg(v => ({ ...v, [id]: e.target.checked }))} />
                       {' '}{navn}
@@ -413,7 +413,7 @@ const VELKOMST_TRIN = [
     tekst: 'Hvert nøgletal – eller hver gruppe af nøgletal, der hører sammen – skrives op ad formuleringstrappen: konstatering, forklaring og vurdering mod sidste år, markedsrente, tommelfingerregler og forretningsmodel. Til sidst en samlet konklusion.'
   },
   {
-    navn: 'Underviservejledning',
+    navn: 'Underviseroverblik',
     tekst: 'Hvad holdet skal finde, hvor netop dette regnskab inviterer til de typiske fejl, og hvilke spørgsmål der hjælper dem videre – klar til gennemgangen.'
   }
 ]
@@ -426,7 +426,7 @@ function Velkomstside ({ gaaTilTrin }) {
         Regnskabsanalyse henter tre års offentliggjorte årsregnskaber, præcis som de står.
         Du omformer regnskabet til analyseform, og appen beregner 28 nøgletal fordelt på
         5 analyseområder. Ud fra nøgletallene skriver appen derefter en vejledende besvarelse
-        op ad formuleringstrappen og en underviservejledning til gennemgangen med holdet.
+        op ad formuleringstrappen og et underviseroverblik til gennemgangen med holdet.
       </p>
 
       <div className="velkomst-trin">
@@ -441,7 +441,7 @@ function Velkomstside ({ gaaTilTrin }) {
 
       <p className="sektion-intro" style={{ maxWidth: '70ch' }}>
         Nøgletallene hentes som Excel-fil med knappen øverst. "Hent Word" samler det, du krydser
-        af – nøgletal og grafer, analysen og underviservejledningen – i ét dokument. Besvarelsen og
+        af – nøgletal og grafer, analysen og underviseroverblikket – i ét dokument. Besvarelsen og
         vejledningen kan også hentes hver for sig under trin 4 og 5.
       </p>
 

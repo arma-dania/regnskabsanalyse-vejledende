@@ -83,4 +83,7 @@ export function konstater(nr, serie, aar, enhedstekst = "") {
   return `${navn} ${verbum(a, c)} fra ${f(a)} i ${aar[i0]} til ${f(c)} i ${aar[iN]}${aendring}.`;
 }
 
+/** Deler en tekst i sætninger – ny sætning kun før stort bogstav, så "8 mio. kr." ikke deles. */
+export const saetninger = t => String(t || "").split(/(?<=[.!?])\s+(?=[A-ZÆØÅ])|\n+/).map(x => x.trim()).filter(Boolean);
+
 export const dage = oms => (oms ? Math.round(365 / oms) : null);

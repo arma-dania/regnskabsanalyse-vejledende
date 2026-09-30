@@ -1,7 +1,7 @@
 // De to Word-dokumenter: den vejledende besvarelse og underviservejledningen.
 
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, ShadingType, BorderStyle } from "docx";
-import { OMRAADER, fmtPct, fmtPp, fmtX } from "./beregning.js";
+import { OMRAADER, fmtPct } from "./beregning.js";
 import { TRIN } from "./temaer.js";
 import { MARKEDSRENTE_NAVN } from "./maalestok.js";
 
@@ -38,44 +38,6 @@ function noegletalTabel(a, o) {
   );
 }
 
-function dupontTabel(a) {
-  const d = a.dupont.filter(Boolean);
-  if (!d.length) return [];
-  return [
-    p("DuPont: ændringen i afkastningsgraden fordelt ved kædesubstitution (først overskudsgraden, derefter omsætningshastigheden).", { run: { italics: true } }),
-    tabel(["", ...d.map(x => x.til)], [
-      ["Afkastningsgrad", ...d.map(x => `${fmtPct(x.ag0)} → ${fmtPct(x.ag1)}`)],
-      ["Overskudsgrad", ...d.map(x => `${fmtPct(x.og0)} → ${fmtPct(x.og1)}`)],
-      ["Aktivernes omsætningshastighed", ...d.map(x => `${fmtX(x.aoh0)} → ${fmtX(x.aoh1)}`)],
-      ["Effekt af overskudsgraden", ...d.map(x => fmtPp(x.ogEffekt))],
-      ["Effekt af omsætningshastigheden", ...d.map(x => fmtPp(x.aohEffekt))],
-      ["Ændring i AG i alt", ...d.map(x => fmtPp(x.dAG))],
-    ]),
-    luft(),
-  ];
-}
-
-function ekfTabel(a) {
-  const e = a.ekf.afstemning;
-  if (!e.every(x => x?.efterSkat != null)) return [];
-  return [
-    p("EKF-formlen og afstemningen til nøgletal 4 (EKF efter skat).", { run: { italics: true } }),
-    tabel(["", ...a.aar], [
-      ["AG", ...e.map(x => fmtPct(x.ag))],
-      ["r (fremmedkapitalens forrentning)", ...e.map(x => fmtPct(x.r))],
-      ["Rentemarginal AG − r", ...e.map(x => fmtPp(x.rentemarginal))],
-      ["Gearing FK/EK", ...e.map(x => fmtX(x.g))],
-      ["Gearingsbidrag (AG − r) · FK/EK", ...e.map(x => fmtPp(x.gearingsbidrag))],
-      ["= EKF før skat efter formlen", ...e.map(x => fmtPct(x.formel))],
-      ["+ øvrige finansielle poster", ...e.map(x => fmtPp(x.rest))],
-      ["= EKF før skat", ...e.map(x => fmtPct(x.foerSkat))],
-      ["− skat", ...e.map(x => fmtPp(x.skat))],
-      ["= EKF efter skat (nøgletal 4)", ...e.map(x => fmtPct(x.efterSkat))],
-    ]),
-    luft(),
-  ];
-}
-
 function forudsaetninger(a) {
   return [
     fed("Analyseår: ", `${a.aar.join(", ")} (tal i ${a.enhed || "kr."}).`),
@@ -85,8 +47,10 @@ function forudsaetninger(a) {
   ];
 }
 
-/** Teksten til ét trin: Claudes prosa, hvis den findes, ellers motorens sætninger. */
-const trinTekst = (a, prosa, id, nr) => prosa?.[id]?.[`trin${nr}`] || a.omraader[id][`trin${nr}`].join(" ");
+/** Teksten til ét trin i en gruppe: Claudes prosa, hvis den findes, ellers motorens sætninger. */
+function trinTekst(prosa, g, nr) {
+  return prosa?.grupper?.[g.id]?.[`trin${nr}`] || g[`trin${nr}`].join(" ");
+}
 
 export const besvarelseDocx = (a, prosa) => Packer.toBlob(besvarelseDok(a, prosa));
 export const vejledningDocx = (a, prosa) => Packer.toBlob(vejledningDok(a, prosa));
@@ -94,17 +58,23 @@ export const vejledningDocx = (a, prosa) => Packer.toBlob(vejledningDok(a, prosa
 export function besvarelseDok(a, prosa = {}) {
   const dele = [
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(`Vejledende besvarelse – ${a.navn}`)] }),
-    p("Regnskabsanalyse på formuleringstrappen: trin 1-3 for hvert analyseområde, trin 4 i den samlede konklusion.", { run: { italics: true } }),
+    p("Regnskabsanalyse på formuleringstrappen: trin 1-3 for hvert nøgletal og hver gruppe af nøgletal, trin 4 i den samlede konklusion.", { run: { italics: true } }),
     ...forudsaetninger(a),
   ];
   for (const o of OMRAADER) {
     const om = a.omraader[o.id];
-    dele.push(h(om.navn, HeadingLevel.HEADING_1), noegletalTabel(a, om), luft());
-    if (o.id === "rentabilitet") dele.push(...dupontTabel(a), ...ekfTabel(a));
-    if (om.ikkeRelevant) { dele.push(p(om.trin1[0])); continue; }
-    for (const t of TRIN.slice(0, 3)) {
-      dele.push(h(`Trin ${t.nr} – ${t.navn}`, HeadingLevel.HEADING_3));
-      for (const afsnit of trinTekst(a, prosa, o.id, t.nr).split(/\n+/)) if (afsnit.trim()) dele.push(p(afsnit.trim()));
+    dele.push(h(om.navn, HeadingLevel.HEADING_1));
+    if (om.ikkeRelevant) {
+      dele.push(p("Der er ikke oplyst antal aktier og børskurs, så de børsrelaterede nøgletal kan ikke beregnes. Er virksomheden ikke børsnoteret, springes området over."));
+      continue;
+    }
+    dele.push(noegletalTabel(a, om), luft());
+    for (const g of om.grupper) {
+      dele.push(h(g.titel, HeadingLevel.HEADING_2));
+      for (const t of TRIN.slice(0, 3)) {
+        const tekst = trinTekst(prosa, g, t.nr);
+        if (tekst.trim()) dele.push(fed(`Trin ${t.nr} – ${t.navn}: `, tekst.replace(/\n+/g, " ")));
+      }
     }
   }
   dele.push(h("Samlet konklusion – Trin 4 Forretningsmodellen", HeadingLevel.HEADING_1));
@@ -112,10 +82,9 @@ export function besvarelseDok(a, prosa = {}) {
   for (const afsnit of t4.split(/\n+/)) if (afsnit.trim()) dele.push(p(afsnit.trim()));
 
   dele.push(h("Metode", HeadingLevel.HEADING_2),
-    punkt("Nøgletallene følger Bilag 2 og er regnet som i nøgletalsappen: AG, EKF, r og gearing på gennemsnit af primo og ultimo, de øvrige på ultimotal."),
+    punkt("Nøgletallene er nøgletalsappens egne og følger Bilag 2: afkastningsgrad, egenkapitalens og fremmedkapitalens forrentning og gearing på gennemsnit af primo og ultimo, de øvrige på ultimotal."),
+    punkt("Nøgletal, der deler forklaring og målestok, er skrevet sammen som én gruppe: kapacitetsgrad, nulpunkt og sikkerhedsmargin; anlæggenes omsætningshastigheder; varelager, debitorer og kreditorer; likviditetsgrad I og II; P/E og kurs/indre værdi."),
     punkt("Ændringer i procentnøgletal er i procentpoint; andre ændringer i procent. En ændring nævnes, når den er mindst ½ procentpoint eller 5 %."),
-    punkt("DuPont-fordelingen er kædesubstitution: først skiftes overskudsgraden, derefter omsætningshastigheden. En anden rækkefølge fordeler samspillet lidt anderledes."),
-    punkt("EKF-formlen gælder før skat. Øvrige finansielle poster og skat vises som egne linjer, så afstemningen går op til nøgletal 4."),
     punkt("Fremmedkapitalens forrentning er regnet på al fremmedkapital, også rentefri gæld. Den faktiske lånerente er derfor højere."));
   return dok(dele);
 }
@@ -135,27 +104,27 @@ export function vejledningDok(a, prosa = {}) {
     h("Forslag til forløb (90 minutter)", HeadingLevel.HEADING_1),
     tabel(["Tid", "Aktivitet"], [
       ["0-10", "Genopfrisk formuleringstrappen. Skriv de fire spørgsmål på tavlen – de er ryggraden i gennemgangen."],
-      ["10-35", "Rentabilitet: tegn DuPont-tallene (tavleskitse 1), og lad holdet selv finde, hvilken faktor der driver AG. Afslut med EKF-afstemningen (tavleskitse 2)."],
-      ["35-50", "Indtjeningsevne og kapitaltilpasning: de to forklarer hver sin faktor i AG. Stil spørgsmålene under faldgruberne."],
+      ["10-35", "Rentabilitet: tag afkastningsgraden op ad trappen sammen med holdet – konstatering, forklaring med overskudsgrad og omsætningshastighed, vurdering mod markedsrenten."],
+      ["35-50", "Indtjeningsevne og kapitaltilpasning: lad grupperne skrive hver sin trappe for et nøgletal eller en nøgletalsgruppe. Stil spørgsmålene under faldgruberne."],
       ["50-65", "Soliditet og likviditet: tommelfingerreglerne – og hvornår forretningsmodellen er en bedre målestok."],
       ["65-85", "Trin 4 i grupper: holder forretningsmodellen? Hver gruppe skriver én anbefaling, der følger af tallene."],
       ["85-90", "Opsamling: hvilke faldgruber ramte vi? Hvilket trin var sværest?"],
     ], [15, 85]),
     luft(),
-
-    h("Tavleskitse 1 – DuPont", HeadingLevel.HEADING_2), ...dupontTabel(a),
-    h("Tavleskitse 2 – EKF-formlen og afstemningen", HeadingLevel.HEADING_2), ...ekfTabel(a),
   ];
 
   for (const o of OMRAADER) {
     const om = a.omraader[o.id];
     dele.push(h(om.navn, HeadingLevel.HEADING_1));
-    if (om.ikkeRelevant) { dele.push(p(om.trin1[0])); continue; }
-    if (om.noegle.length) dele.push(fed("Det skal de finde (trin 1): ", ""), ...om.noegle.map(punkt));
-    if (om.trin2.length) dele.push(fed("Årsagskæden (trin 2): ", ""), ...om.trin2.map(punkt));
-    if (om.trin3.length) dele.push(fed("Målestokke (trin 3): ", ""), ...om.trin3.map(punkt));
-    const fg = a.faldgruber.filter(f => f.omraade === o.id);
-    if (fg.length) dele.push(fed("Faldgruber at tage fat i: ", ""), ...fg.flatMap(faldgrubeAfsnit));
+    if (om.ikkeRelevant) { dele.push(p("Ikke relevant – der er ikke oplyst aktiedata.")); continue; }
+    for (const g of om.grupper) {
+      dele.push(h(g.titel, HeadingLevel.HEADING_2));
+      if (g.noegle.length) dele.push(fed("Det skal de finde (trin 1): ", ""), ...g.noegle.map(punkt));
+      if (g.trin2.length) dele.push(fed("Forklaringen (trin 2): ", ""), ...g.trin2.map(punkt));
+      if (g.trin3.length) dele.push(fed("Målestokkene (trin 3): ", ""), ...g.trin3.map(punkt));
+      const fg = a.faldgruber.filter(f => f.gruppe === g.id);
+      if (fg.length) dele.push(fed("Faldgruber at tage fat i: ", ""), ...fg.flatMap(faldgrubeAfsnit));
+    }
   }
 
   dele.push(h("Trin 4 – forretningsmodellen", HeadingLevel.HEADING_1));

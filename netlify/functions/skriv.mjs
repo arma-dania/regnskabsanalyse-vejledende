@@ -5,7 +5,7 @@
 
 import { createHash, timingSafeEqual } from "node:crypto";
 import { spoergJson, Opsaetningsfejl, ClaudeFejl } from "./lib/claude.mjs";
-import { omraadePrompt, OMRAADESKEMA, konklusionPrompt, KONKLUSIONSKEMA } from "./lib/prompter.mjs";
+import { gruppePrompt, GRUPPESKEMA, konklusionPrompt, KONKLUSIONSKEMA } from "./lib/prompter.mjs";
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
@@ -28,7 +28,7 @@ export default async function handler(req) {
   try {
     if (!kodeOk(req.headers.get("x-adgangskode"))) return json({ fejl: "Forkert adgangskode." }, 401);
     if (krop?.del === "tjek") return json({ ok: true });
-    if (krop?.del === "omraade") return json(await spoergJson(omraadePrompt(krop.data ?? {}), OMRAADESKEMA));
+    if (krop?.del === "gruppe") return json(await spoergJson(gruppePrompt(krop.data ?? {}), GRUPPESKEMA, { maxTokens: 4000 }));
     if (krop?.del === "konklusion") return json(await spoergJson(konklusionPrompt(krop.data ?? {}), KONKLUSIONSKEMA));
     return json({ fejl: "Ukendt del." }, 400);
   } catch (e) {

@@ -1,11 +1,10 @@
 import { OMRAADER } from '../analyse/beregning.js'
 import { TRIN } from '../analyse/temaer.js'
-import { DuPont, EkfTabel } from './AnalyseTrin.jsx'
 
 const FORLOEB = [
   ['0–10', 'Formuleringstrappen på tavlen – de fire spørgsmål er ryggraden i gennemgangen.'],
-  ['10–35', 'Rentabilitet: DuPont-tallene. Lad holdet selv finde, hvilken faktor der driver AG. Afslut med EKF-afstemningen.'],
-  ['35–50', 'Indtjeningsevne og kapitaltilpasning – de forklarer hver sin faktor i AG. Stil spørgsmålene under faldgruberne.'],
+  ['10–35', 'Rentabilitet: tag afkastningsgraden op ad trappen sammen med holdet – konstatering, forklaring med overskudsgrad og omsætningshastighed, vurdering mod markedsrenten.'],
+  ['35–50', 'Indtjeningsevne og kapitaltilpasning: lad grupperne skrive hver sin trappe for et nøgletal eller en nøgletalsgruppe. Stil spørgsmålene under faldgruberne.'],
   ['50–65', 'Soliditet og likviditet: tommelfingerreglerne – og hvornår forretningsmodellen er den bedre målestok.'],
   ['65–85', 'Trin 4 i grupper: holder forretningsmodellen? Én anbefaling pr. gruppe, der følger af tallene.'],
   ['85–90', 'Opsamling: hvilke faldgruber ramte vi, og hvilket trin var sværest?']
@@ -43,35 +42,37 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
         </table>
       </section>
 
-      <section className="kort">
-        <h3>Tavleskitser</h3>
-        <DuPont a={a} />
-        <EkfTabel a={a} />
-      </section>
-
-      {[...OMRAADER, { id: 'konklusion', navn: 'Trin 4 – forretningsmodellen' }].map(o => {
+      {OMRAADER.map(o => {
         const om = a.omraader[o.id]
-        if (om?.ikkeRelevant) return null
-        const fg = a.faldgruber.filter(f => f.omraade === o.id)
+        if (om.ikkeRelevant) return null
         return (
           <section className="kort" key={o.id}>
-            <h3>{o.navn}</h3>
-            {om?.noegle?.length > 0 && <><h4>Det skal de finde</h4><ul>{om.noegle.map((s, i) => <li key={i}>{s}</li>)}</ul></>}
-            {o.id === 'konklusion' && a.profil && <p><strong>Typisk {a.profil.navn.toLowerCase()}:</strong> {a.profil.kendetegn}</p>}
-            {o.id === 'konklusion' && k.afvigelser.length > 0 && <><h4>Afvigelser fra profilen</h4><ul>{k.afvigelser.map((s, i) => <li key={i}>{s}</li>)}</ul></>}
-            {fg.length > 0 && <h4>Faldgruber</h4>}
-            {fg.map((f, i) => (
-              <div key={i} className="faldgrube">
-                <div className="faldgrube-tema">{f.temaNavn}</div>
-                <p><strong>Forventet:</strong> {f.forventet}</p>
-                <p><strong>Spørg:</strong> {f.spoergsmaal}</p>
-                <p><strong>Svaret:</strong> {f.svar}</p>
-              </div>
-            ))}
-            {!fg.length && o.id !== 'konklusion' && <p className="hjaelp">Ingen særlige faldgruber i dette regnskab.</p>}
+            <h3>{om.navn}</h3>
+            {om.grupper.map(g => {
+              const fg = a.faldgruber.filter(f => f.gruppe === g.id)
+              return (
+                <div key={g.id} className="noegletal-trappe">
+                  <h4>{g.titel}</h4>
+                  <p className="hjaelp"><strong>Det skal de finde:</strong> {g.noegle.join(' · ')}</p>
+                  <details>
+                    <summary>Forklaring og målestok (trin 2 og 3)</summary>
+                    <ul>{[...g.trin2, ...g.trin3].map((s, i) => <li key={i}>{s}</li>)}</ul>
+                  </details>
+                  {fg.map((f, i) => <Faldgrube key={i} f={f} />)}
+                </div>
+              )
+            })}
           </section>
         )
       })}
+
+      <section className="kort">
+        <h3>Trin 4 – forretningsmodellen</h3>
+        {a.profil && <p><strong>Typisk {a.profil.navn.toLowerCase()}:</strong> {a.profil.kendetegn}</p>}
+        {k.afvigelser.length > 0 && <><h4>Afvigelser fra profilen</h4><ul>{k.afvigelser.map((s, i) => <li key={i}>{s}</li>)}</ul></>}
+        {k.anbefalinger.length > 0 && <><h4>Anbefalinger, der følger af tallene</h4><ul>{k.anbefalinger.map((s, i) => <li key={i}>{s}</li>)}</ul></>}
+        {a.faldgruber.filter(f => f.gruppe === 'konklusion').map((f, i) => <Faldgrube key={i} f={f} />)}
+      </section>
 
       <section className="kort">
         <h3>Tjekliste: hvornår er et trin nået?</h3>
@@ -80,5 +81,16 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
         </table>
       </section>
     </>
+  )
+}
+
+function Faldgrube ({ f }) {
+  return (
+    <div className="faldgrube">
+      <div className="faldgrube-tema">{f.temaNavn}</div>
+      <p><strong>Forventet:</strong> {f.forventet}</p>
+      <p><strong>Spørg:</strong> {f.spoergsmaal}</p>
+      <p><strong>Svaret:</strong> {f.svar}</p>
+    </div>
   )
 }

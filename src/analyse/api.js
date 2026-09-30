@@ -12,10 +12,22 @@ async function kald(del, data, kode) {
     headers: { "content-type": "application/json", "x-adgangskode": kode },
     body: JSON.stringify({ del, data }),
   });
+  const tekst = await svar.text();
   let krop = null;
-  try { krop = await svar.json(); } catch { /* ikke JSON */ }
-  if (!svar.ok) throw new Error(krop?.fejl || (svar.status === 404 ? "Serverfunktionen findes ikke her. Kør appen med 'netlify dev' eller på Netlify." : `Serveren svarede ${svar.status}.`));
+  try { krop = JSON.parse(tekst); } catch { /* ikke JSON */ }
+  if (!svar.ok) throw new Error(krop?.fejl || fejlUdenFunktion(svar.status, tekst));
   return krop;
+}
+
+/** Svaret kom ikke fra serverfunktionen – forklar, hvor det så kom fra. */
+function fejlUdenFunktion(status, tekst) {
+  if (status === 404) return "Serverfunktionen findes ikke her. Kør appen med 'netlify dev' eller på Netlify.";
+  if (status === 401 || status === 403)
+    return `Netlify afviste kaldet (${status}), før det nåede serverfunktionen – adgangskoden er ikke prøvet endnu. ` +
+      "Det skyldes som regel adgangsbeskyttelse på sitet eller på forhåndsvisningen (Netlify: Site configuration → Access & security → Visitor access / Deploy Preview protection). " +
+      "Brug sitets almindelige adresse, eller slå beskyttelsen fra for serverfunktionen.";
+  const uddrag = String(tekst || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+  return `Serveren svarede ${status}${uddrag ? `: ${uddrag}` : "."}`;
 }
 
 export const tjekKode = kode => kald("tjek", {}, kode);

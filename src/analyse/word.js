@@ -1,7 +1,7 @@
 // De to Word-dokumenter: den vejledende besvarelse og underviservejledningen.
 
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, ShadingType, BorderStyle } from "docx";
-import { OMRAADER, fmtPct, fmtPp, fmtX } from "./nogletal.js";
+import { OMRAADER, fmtPct, fmtPp, fmtX } from "./beregning.js";
 import { TRIN } from "./temaer.js";
 import { MARKEDSRENTE_NAVN } from "./maalestok.js";
 

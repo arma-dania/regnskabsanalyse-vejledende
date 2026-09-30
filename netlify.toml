@@ -1,6 +1,6 @@
 [build]
-  # Prøverne kører før hvert deploy og stopper det, hvis en dekomposition
-  # ikke længere går op.
+  # Prøverne kører før hvert deploy og stopper det, hvis analysen ikke
+  # længere går op mod nøgletallene.
   command = "npm run proeve && npm run build"
   publish = "dist"
   functions = "netlify/functions"
@@ -8,9 +8,7 @@
 [build.environment]
   NODE_VERSION = "22"
 
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Content-Type-Options = "nosniff"
-    X-Frame-Options = "DENY"
-    Referrer-Policy = "same-origin"
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

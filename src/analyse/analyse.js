@@ -11,15 +11,19 @@
 // Ingen AI her. Alt er deterministisk og kan kontrolleres i prøverne, og hver
 // sætning bygger på tal, der står i nøgletalstabellen.
 
-import { OMRAADER, NT, regnCase, formatNt, formatAendring, formatGraense, fmtPct, fmtPp, fmtPpU, fmtX } from "./nogletal.js";
+import { OMRAADER, NT, regnCase, formatNt, formatAendring, formatGraense, fmtPct, fmtPp, fmtPpU, fmtX } from "./beregning.js";
 import { BESTEMT, stort, konstater, vaesentlig, verbum, dage } from "./tekst.js";
 import { TOMMELFINGERREGLER, MARKEDSRENTE_FORSLAG, MARKEDSRENTE_NAVN, findProfil, PROFILNOEGLE, modProfil } from "./maalestok.js";
 import { TEMANAVN } from "./temaer.js";
 
 const PROFILNAVN = { bm: "bruttomargin", og: "overskudsgrad", aoh: "aktivernes omsætningshastighed", al: "anlægsgrad", lager: "varelagerets omsætningshastighed", deb: "varedebitorernes omsætningshastighed", sol: "soliditetsgrad" };
 
-export function analyser(kase) {
-  const beregnet = regnCase(kase);
+/**
+ * kase: regnskabet og målestokkene (se fraDataset.js).
+ * noegletal: nøgletalsappens egne tal pr. år – dem skrives analysen ud fra.
+ */
+export function analyser(kase, noegletal = null) {
+  const beregnet = regnCase(kase, noegletal);
   const aar = beregnet.map(b => b.aar);
   const serie = nr => beregnet.map(b => b.n[nr]);
   const sidst = nr => serie(nr)[2];

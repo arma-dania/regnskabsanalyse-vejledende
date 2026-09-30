@@ -3,11 +3,14 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { EKSEMPEL } from "../src/lib/eksempel.js";
-import { regnCase } from "../src/lib/nogletal.js";
-import { analyser } from "../src/lib/analyse.js";
-import { laesTal, laesIndsat, medAfledte, balanceKontrol } from "../src/lib/poster.js";
-import { tjekTal } from "../src/lib/tjek.js";
+import { EKSEMPEL } from "../src/analyse/eksempel.js";
+import { regnCase } from "../src/analyse/beregning.js";
+import { analyser } from "../src/analyse/analyse.js";
+import { medAfledte, balanceKontrol } from "../src/analyse/poster.js";
+import { fraDataset } from "../src/analyse/fraDataset.js";
+import { emptyDataset } from "../src/lib/model.js";
+import { beregnAlle } from "../src/lib/nogletal.js";
+import { tjekTal } from "../src/analyse/tjek.js";
 
 const naer = (a, b, tol = 1e-9) => assert.ok(Math.abs(a - b) < tol, `${a} ≠ ${b}`);
 
@@ -86,25 +89,56 @@ test("en tom case giver ingen fejl", () => {
   assert.equal(a.omraader.rentabilitet.trin2.length, 0);
 });
 
-test("tal læses i dansk og engelsk format", () => {
-  assert.equal(laesTal("1.234,5"), 1234.5);
-  assert.equal(laesTal("1,234.5"), 1234.5);
-  assert.equal(laesTal("12.345"), 12345);
-  assert.equal(laesTal("(2.400)"), -2400);
-  assert.equal(laesTal("−3,5"), -3.5);
-  assert.equal(laesTal(""), null);
-});
-
-test("indsatte linjer genkendes på postens navn", () => {
-  const { poster, ukendte } = laesIndsat("Nettoomsætning\t300.000\t324.000\nAnlægsaktiver i alt\t21.000\t22.200\nNoget andet\t5\t6", 4);
-  assert.deepEqual(poster.omsaetning, [300000, 324000]);
-  assert.deepEqual(poster.anlaegsaktiver, [21000, 22200]);
-  assert.deepEqual(ukendte, ["Noget andet"]);
-});
-
 test("taltjekket finder tal, der ikke står i analysen", () => {
   const a = analyser(EKSEMPEL);
   const ok = a.omraader.rentabilitet.trin1[0];
   assert.deepEqual(tjekTal(ok, a), []);
   assert.deepEqual(tjekTal("Afkastningsgraden var 17,3 % i 2025.", a), ["17,3"]);
+});
+
+// Eksemplet som nøgletalsappens dataset: samme tal, som hvis de var indlæst
+// og omformet dér. Tallene gemmes i grundenheden (kr.) og vises i 1.000 kr.
+function somDataset() {
+  const d = emptyDataset();
+  const kr = v => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, x * 1000]));
+  const { leverandoergaeld, kortfristetGaeld, ...primo } = EKSEMPEL.kolonner[0].v;
+  d.virksomhed = EKSEMPEL.navn;
+  d.enhed = "1.000 kr.";
+  d.grundenhed = "kr.";
+  d.primo = kr({ ...primo, leverandoergaeld, andenKortfristetGaeld: kortfristetGaeld - leverandoergaeld });
+  d.aar = EKSEMPEL.kolonner.slice(1).map(k => {
+    const { leverandoergaeld: l, kortfristetGaeld: kg, omsaetningsaktiver, ...v } = k.v;
+    return { label: k.aar, poster: {}, values: kr({ ...v, leverandoergaeld: l, andenKortfristetGaeld: kg - l, likvider: omsaetningsaktiver - v.varelager - v.varedebitorer }) };
+  });
+  d.analyse = { markedsrente: [null, null, 3.4], profil: "grossist", forretningsmodel: EKSEMPEL.forretningsmodel };
+  return d;
+}
+
+test("analysen bruger nøgletalsappens egne nøgletal", () => {
+  const d = somDataset();
+  const { kase, noegletal } = fraDataset(d);
+  const a = analyser(kase, noegletal);
+  const deres = beregnAlle(d);
+  for (let i = 0; i < 3; i++)
+    for (const nr of [1, 2, 3, 4, 5, 6, 7, 12, 16, 17, 18, 19, 20, 22, 23, 24])
+      naer(a.beregnet[i].n[nr], deres[i][nr].value, 1e-9);
+  assert.equal(a.aar.join(), "2023,2024,2025");
+  assert.equal(kase.kolonner[0].aar, "2022");
+});
+
+test("motorens egen regning stemmer med nøgletalsappens", () => {
+  const d = somDataset();
+  const deres = beregnAlle(d);
+  const egne = regnCase(EKSEMPEL);
+  for (let i = 0; i < 3; i++)
+    for (const nr of [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24])
+      naer(egne[i].n[nr], deres[i][nr].value, 1e-6);
+});
+
+test("dekompositionerne går også op på nøgletalsappens tal", () => {
+  const { kase, noegletal } = fraDataset(somDataset());
+  const a = analyser(kase, noegletal);
+  for (const d of a.dupont) naer(d.ogEffekt + d.aohEffekt, d.dAG, 1e-9);
+  a.beregnet.forEach((b, i) => naer(a.ekf.afstemning[i].efterSkat, b.n[4], 1e-9));
+  for (const p of a.ekf.perioder) naer(p.agEffekt + p.rEffekt + p.gEffekt + p.restEffekt + p.skatEffekt, p.dEKF, 1e-9);
 });

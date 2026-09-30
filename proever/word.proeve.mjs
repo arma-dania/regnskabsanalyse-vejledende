@@ -3,9 +3,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Packer } from "docx";
-import { EKSEMPEL } from "../src/lib/eksempel.js";
-import { analyser } from "../src/lib/analyse.js";
-import { besvarelseDok, vejledningDok } from "../src/lib/word.js";
+import { EKSEMPEL } from "../src/analyse/eksempel.js";
+import { analyser } from "../src/analyse/analyse.js";
+import { besvarelseDok, vejledningDok } from "../src/analyse/word.js";
 import { kodeOk } from "../netlify/functions/skriv.mjs";
 import { omraadePrompt, konklusionPrompt } from "../netlify/functions/lib/prompter.mjs";
 

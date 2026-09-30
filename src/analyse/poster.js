@@ -1,8 +1,5 @@
-// Regnskabet i analyseform – de poster, analysen bygger på.
-//
-// Nøglerne er de samme som i nøgletalsappen (arma-dania/regnskaber), så tal
-// kan flyttes mellem de to apps uden omdøbning. Poster markeret "afledt"
-// beregnes, hvis de ikke er tastet: fx bruttoresultat = omsætning − vareforbrug.
+// De poster fra analyseformen, analysemotoren bruger. Nøglerne er de samme
+// som i src/lib/model.js. Poster markeret "afledt" beregnes, hvis de mangler.
 //
 // Resultatposter hører til et år. Balanceposter findes også for primo (det
 // ældste regnskabs sammenligningsår), fordi afkastningsgrad, EKF, r og gearing
@@ -79,52 +76,4 @@ export function balanceKontrol(v) {
   if (v.aktiverIAlt == null || v.egenkapital == null) return null;
   const passiver = v.egenkapital + (v.langfristetGaeld ?? 0) + (v.kortfristetGaeld ?? 0);
   return { aktiver: v.aktiverIAlt, passiver, forskel: v.aktiverIAlt - passiver };
-}
-
-/**
- * Læser tal indsat fra Excel eller fra nøgletalsappens Word/Excel: én post pr.
- * linje, navnet først og derefter tallene adskilt af tabulator. Navnet
- * genkendes på postens betegnelse eller et synonym. Tal i dansk format
- * ("1.234,5") og engelsk format ("1,234.5") læses begge.
- */
-export function laesIndsat(tekst, antalKolonner) {
-  const ud = {};
-  const ukendte = [];
-  for (const linje of String(tekst).split(/\r?\n/)) {
-    const felter = linje.split("\t").map(s => s.trim());
-    if (felter.length < 2 || !felter[0]) continue;
-    const navn = felter[0].toLowerCase().replace(/\s+/g, " ").replace(/[:*]/g, "").trim();
-    const post = findPost(navn);
-    const vaerdier = felter.slice(1).map(laesTal).filter((_, i) => i < antalKolonner);
-    if (!post) {
-      if (vaerdier.some(x => x != null)) ukendte.push(felter[0]);
-      continue;
-    }
-    ud[post.key] = vaerdier;
-  }
-  return { poster: ud, ukendte };
-}
-
-function findPost(navn) {
-  // Præcis betegnelse først, så "anlægsaktiver i alt" ikke fanges af "anlægsaktiver".
-  for (const p of POSTER) if (p.label.toLowerCase() === navn || p.synonymer.includes(navn)) return p;
-  let bedst = null;
-  for (const p of POSTER)
-    for (const s of p.synonymer)
-      if (navn.startsWith(s) && (!bedst || s.length > bedst.l)) bedst = { p, l: s.length };
-  return bedst?.p ?? null;
-}
-
-export function laesTal(s) {
-  if (s == null) return null;
-  let t = String(s).replace(/\s|kr\.?|t\.kr\.?/gi, "").replace(/[()]/g, m => (m === "(" ? "-" : ""));
-  if (!t || t === "-" || t === "–") return null;
-  t = t.replace("−", "-").replace("–", "-");
-  const komma = t.lastIndexOf(",");
-  const punktum = t.lastIndexOf(".");
-  if (komma > punktum) t = t.replace(/\./g, "").replace(",", ".");
-  else if (punktum > komma && komma !== -1) t = t.replace(/,/g, "");
-  else if (punktum !== -1 && /^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "");
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
 }

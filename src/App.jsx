@@ -98,7 +98,14 @@ export default function App () {
   // Ændres tallene eller målestokkene, passer Claudes tekst ikke længere.
   const fingeraftryk = useMemo(() => JSON.stringify(analyseGrundlag), [analyseGrundlag])
   const prosaForaeldet = !!prosa._fingeraftryk && prosa._fingeraftryk !== fingeraftryk
-  const gyldigProsa = prosaForaeldet ? {} : prosa
+  // Motorens tekst eller Claudes prosa – valget gælder også Word og overblikket.
+  const [visProsa, setVisProsa] = useState(() => {
+    try { return localStorage.getItem(NOEGLE_PROSA + '-vis') === '1' } catch { return false }
+  })
+  useEffect(() => {
+    try { localStorage.setItem(NOEGLE_PROSA + '-vis', visProsa ? '1' : '0') } catch { /* fx privat browsing */ }
+  }, [visProsa])
+  const gyldigProsa = prosaForaeldet || !visProsa ? {} : prosa
 
   async function hentAnalyseWord (hvad) {
     setTravl(hvad); setKvittering(null)
@@ -384,6 +391,7 @@ export default function App () {
           <AnalyseTrin
             dataset={dataset} setDataset={setDataset} analyse={analyse} indlaest={analyseGrundlag.indlaest}
             prosa={prosa} setProsa={setProsa} fingeraftryk={fingeraftryk} foraeldet={prosaForaeldet}
+            visProsa={visProsa} setVisProsa={setVisProsa}
             hentWord={hentAnalyseWord} travl={travl}
           />
         )}

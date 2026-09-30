@@ -301,6 +301,9 @@ function Omraade ({ a, id, prosa, dk, saet, kanSkrive, skriv, skrivDk }) {
                 {o.tabel.filter(r => g.nrs.includes(r.nr)).map(r => (
                   <tr key={r.nr}><td>{r.nr}. {r.navn}</td>{r.tekst.map((t, i) => <td key={i} className="num">{t}</td>)}<td className="num">{r.pct}</td></tr>
                 ))}
+                {g.id === 'indeks' && (o.ekstraTabel || []).map(r => (
+                  <tr key={r.navn}><td>{r.navn}</td>{r.tekst.map((t, i) => <td key={i} className="num">{t}</td>)}<td className="num">{r.pct}</td></tr>
+                ))}
               </tbody>
             </table>
             {TRIN.slice(0, 3).map(t => (

@@ -34,7 +34,7 @@ const luft = () => new Paragraph({ spacing: { after: 120 }, children: [] });
 function noegletalTabel(a, o) {
   return tabel(
     ["Nøgletal", ...a.aar, "Ændring i %"],
-    o.tabel.map(r => [`${r.nr}. ${r.navn}`, ...r.tekst, r.pct]),
+    [...o.tabel.map(r => [`${r.nr}. ${r.navn}`, ...r.tekst, r.pct]), ...(o.ekstraTabel || []).map(r => [r.navn, ...r.tekst, r.pct])],
     [40, 15, 15, 15, 15],
   );
 }

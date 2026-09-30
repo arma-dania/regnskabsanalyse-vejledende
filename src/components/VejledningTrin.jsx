@@ -82,6 +82,9 @@ export default function VejledningTrin ({ analyse: a, prosa, hentWord, travl }) 
                 {om.tabel.filter(r => r.vaerdier.some(x => x != null)).map(r => (
                   <tr key={r.nr}><td>{r.nr}. {r.navn}</td>{r.tekst.map((t, i) => <td key={i} className="num">{t}</td>)}<td className="num">{r.pct}</td></tr>
                 ))}
+                {(om.ekstraTabel || []).map(r => (
+                  <tr key={r.navn}><td>{r.navn}</td>{r.tekst.map((t, i) => <td key={i} className="num">{t}</td>)}<td className="num">{r.pct}</td></tr>
+                ))}
               </tbody>
             </table>
             {sam.length > 0 && (

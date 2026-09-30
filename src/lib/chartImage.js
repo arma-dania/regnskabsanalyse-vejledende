@@ -47,7 +47,8 @@ export async function hentAlleGrafer () {
   const ud = {}
   const noder = document.querySelectorAll('[data-graf-nr]')
   for (const node of noder) {
-    const nr = parseInt(node.getAttribute('data-graf-nr'), 10)
+    // Nøgletallenes nummer – eller fx "indeks:varelager" for indekstallene.
+    const nr = node.getAttribute('data-graf-nr')
     const svg = node.querySelector('svg')
     try {
       const png = await svgTilPng(svg)

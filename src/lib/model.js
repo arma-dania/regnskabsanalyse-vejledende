@@ -453,7 +453,7 @@ export function validate (dataset) {
     for (const [k, navn] of [['aaretsResultat', 'Årets resultat'], ['resultatFoerSkat', 'Resultat før skat']]) {
       const rap = y.rapporteret?.[k]
       if (rap == null || v[k] == null || near(rap, v[k])) continue
-      raa.push({ level: 'error', year: label, text: `${navn} er ${fmt(rap)} kr. i regnskabet, men ${fmt(v[k])} kr. i analyseformen. En post i resultatopgørelsen (fx indtægter af kapitalandele) mangler en plads i analyseformen, så egenkapitalens forrentning bliver forkert. Læg posten sammen med de finansielle poster.` })
+      raa.push({ level: 'error', year: label, text: `${navn} er ${fmt(rap)} kr. i regnskabet, men ${fmt(v[k])} kr. i analyseformen. En post i resultatopgørelsen (fx andre driftsindtægter eller indtægter af kapitalandele) har ikke fået en plads i analyseformen, så nøgletallene bliver forkerte. Læg posten sammen med den post, den hører til.` })
       break
     }
     if (v.kapacitetsomkostninger != null && v.kapacitetsomkostninger < 0) {

@@ -356,3 +356,7 @@ details summary { cursor: pointer; font-size: 13px; color: var(--petrol); margin
 .hovedpointe { padding: 12px 16px; }
 .hovedpointe p { margin: 0 0 10px; line-height: 1.55; }
 .hovedpointe p:last-child { margin-bottom: 0; }
+.vaelger { display: inline-flex; }
+.vaelger .knap { border-radius: 0; }
+.vaelger .knap:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.vaelger .knap:last-child { border-radius: 0 var(--radius) var(--radius) 0; margin-left: -1px; }

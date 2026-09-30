@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { OMRAADER, NT, formatNt } from '../analyse/beregning.js'
 import { PROFILER, PROFILNOEGLE, TOMMELFINGERREGLER, MARKEDSRENTE_FORSLAG, MARKEDSRENTE_NAVN, findProfil, modProfil } from '../analyse/maalestok.js'
 import { TRIN } from '../analyse/temaer.js'
 import { tomAnalyse } from '../analyse/fraDataset.js'
 import { talIAnalysen, tjekTal } from '../analyse/tjek.js'
-import { hentKode, gemKode, tjekKode, alleGrupper, skrivGruppe, skrivOmraade, skrivKonklusion } from '../analyse/api.js'
+import { hentKode, gemKode, alleGrupper, skrivGruppe, skrivOmraade, skrivKonklusion } from '../analyse/api.js'
 
 const komma = x => String(x).replace('.', ',')
 
@@ -12,7 +12,7 @@ const komma = x => String(x).replace('.', ',')
  * Trin 4: målestokkene og den vejledende besvarelse, skrevet ud fra
  * nøgletallene fra trin 3.
  */
-export default function AnalyseTrin ({ dataset, setDataset, analyse, indlaest, prosa, setProsa, fingeraftryk, foraeldet, hentWord, travl }) {
+export default function AnalyseTrin ({ dataset, setDataset, analyse, indlaest, prosa, setProsa, fingeraftryk, foraeldet, visProsa, setVisProsa, hentWord, travl }) {
   return (
     <>
       <h2 className="sektion-titel">Vejledende besvarelse – {analyse.navn}</h2>
@@ -28,7 +28,7 @@ export default function AnalyseTrin ({ dataset, setDataset, analyse, indlaest, p
           {travl === 'besvarelse' ? 'Danner …' : 'Hent vejledende besvarelse (Word)'}
         </button>
       </div>
-      <Besvarelse analyse={analyse} prosa={prosa} setProsa={setProsa} fingeraftryk={fingeraftryk} foraeldet={foraeldet} />
+      <Besvarelse analyse={analyse} prosa={prosa} setProsa={setProsa} fingeraftryk={fingeraftryk} foraeldet={foraeldet} vis={visProsa} setVis={setVisProsa} />
     </>
   )
 }
@@ -166,41 +166,47 @@ function Beretning ({ dataset, setDataset, analyse, indlaest }) {
 
 /* ====================== Besvarelsen ====================== */
 
-function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet }) {
+function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet, vis, setVis }) {
   const [kode, setKode] = useState(hentKode())
-  const [forbundet, setForbundet] = useState(false)
+  const kodeRef = useRef(kode)
+  const [spoerg, setSpoerg] = useState(false)
   const [travl, setTravl] = useState('')
   const [fejl, setFejl] = useState('')
   const saet = useMemo(() => talIAnalysen(analyse), [analyse])
-  const brug = foraeldet ? {} : prosa
+  // Det, Claude allerede har skrevet (og som stadig passer til tallene) …
+  const gemt = foraeldet ? {} : prosa
+  const harProsa = Object.keys(gemt).some(k => k !== '_fingeraftryk')
+  // … og det, der vises.
+  const brug = vis ? gemt : {}
 
-  async function forbind (e) {
-    e.preventDefault()
-    setFejl('')
-    try { await tjekKode(kode); gemKode(kode); setForbundet(true) } catch (x) { setFejl(x.message) }
-  }
   // Én trappe ad gangen, så hvert kald er kort og holder sig under
   // Netlifys tidsgrænse.
   async function skrivGrp (oid, g, p) {
     setTravl(g.id)
-    const svar = await skrivGruppe(analyse, oid, g, kode)
+    const svar = await skrivGruppe(analyse, oid, g, kodeRef.current)
     return { ...p, grupper: { ...(p.grupper || {}), [g.id]: svar }, _fingeraftryk: fingeraftryk }
   }
   async function skrivOmr (oid, p) {
     setTravl(oid)
-    const svar = await skrivOmraade(analyse, oid, p, kode)
+    const svar = await skrivOmraade(analyse, oid, p, kodeRef.current)
     return { ...p, omraader: { ...(p.omraader || {}), [oid]: svar }, _fingeraftryk: fingeraftryk }
   }
   async function skrivKonk (p) {
     setTravl('konklusion')
-    return { ...p, konklusion: await skrivKonklusion(analyse, p, kode), _fingeraftryk: fingeraftryk }
+    return { ...p, konklusion: await skrivKonklusion(analyse, p, kodeRef.current), _fingeraftryk: fingeraftryk }
   }
   async function koer (fn) {
     setFejl('')
-    try { await fn() } catch (x) { setFejl(x.message) } finally { setTravl('') }
+    try {
+      await fn()
+    } catch (x) {
+      setFejl(x.message)
+      // Kræver serverfunktionen en adgangskode (ADGANGSKODE sat i Netlify), spørges der.
+      if (/Forkert adgangskode/.test(x.message)) setSpoerg(true)
+    } finally { setTravl('') }
   }
   const skrivAlt = () => koer(async () => {
-    let p = { ...brug }
+    let p = { ...gemt }
     for (const o of OMRAADER) {
       if (analyse.omraader[o.id].ikkeRelevant) continue
       for (const { gruppe } of alleGrupper(analyse).filter(x => x.omraade === o.id)) {
@@ -212,43 +218,55 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet }) {
     }
     setProsa(await skrivKonk(p))
   })
-  const skrivEn = (oid, g) => koer(async () => setProsa(await skrivGrp(oid, g, brug)))
-  const skrivDelkonklusion = oid => koer(async () => setProsa(await skrivOmr(oid, brug)))
-  const skrivKonklusionen = () => koer(async () => setProsa(await skrivKonk(brug)))
+  const skrivEn = (oid, g) => koer(async () => setProsa(await skrivGrp(oid, g, gemt)))
+  const skrivDelkonklusion = oid => koer(async () => setProsa(await skrivOmr(oid, gemt)))
+  const skrivKonklusionen = () => koer(async () => setProsa(await skrivKonk(gemt)))
   const travlNavn = travl === 'konklusion' ? 'konklusionen' : analyse.omraader[travl] ? `delkonklusionen for ${analyse.omraader[travl].navn.toLowerCase()}` : alleGrupper(analyse).find(x => x.gruppe.id === travl)?.gruppe.titel.toLowerCase()
+
+  // Claudes prosa: vis den, der er skrevet – ellers skriv den.
+  function visClaude () {
+    setVis(true)
+    if (!harProsa && !travl) skrivAlt()
+  }
+  function brugKode (e) {
+    e.preventDefault()
+    gemKode(kode); kodeRef.current = kode; setSpoerg(false)
+    skrivAlt()
+  }
+  const kanSkrive = vis && !spoerg && !travl
 
   return (
     <>
       <div className="kort claude-kort">
         <h3>Motorens tekst eller Claudes prosa</h3>
         <p className="hjaelp">
-          Nedenfor står motorens analyse: alt er regnet ud fra nøgletallene, intet er gættet. Claude kan omskrive den til
-          sammenhængende prosa og skrive trin 4. Claude må kun bruge tallene fra analysen – hvert tal tjekkes, og ukendte
-          tal markeres med gult.
+          Motorens tekst er regnet ud fra nøgletallene – intet er gættet. Claudes prosa er den samme analyse skrevet som
+          sammenhængende tekst. Claude må kun bruge tallene fra analysen; hvert tal tjekkes, og ukendte tal markeres med gult.
+          Valget gælder også Word og underviseroverblikket.
         </p>
-        {!forbundet
-          ? (
-            <form className="knap-raekke" onSubmit={forbind}>
-              <label>Adgangskode <input type="password" value={kode} onChange={e => setKode(e.target.value)} /></label>
-              <button className="knap primaer">Forbind</button>
-            </form>
-            )
-          : (
-            <div className="knap-raekke">
-              <button className="knap primaer" disabled={!!travl} onClick={skrivAlt}>
-                {travl ? `Skriver ${travlNavn} …` : 'Skriv hele besvarelsen som prosa'}
-              </button>
-              {Object.keys(brug).length > 0 && <button className="knap lys" disabled={!!travl} onClick={() => setProsa({})}>Tilbage til motorens tekst</button>}
-            </div>
-            )}
-        {foraeldet && <div className="besked advarsel">Nøgletallene eller målestokkene er ændret, siden Claude skrev prosaen. Den bruges ikke, før den er skrevet igen.</div>}
+        <div className="knap-raekke">
+          <div className="vaelger" role="group" aria-label="Tekst">
+            <button className={'knap' + (!vis ? ' primaer' : ' lys')} disabled={!!travl} onClick={() => setVis(false)}>Motorens tekst</button>
+            <button className={'knap' + (vis ? ' primaer' : ' lys')} disabled={!!travl} onClick={visClaude}>
+              {travl ? `Skriver ${travlNavn} …` : 'Claudes prosa'}
+            </button>
+          </div>
+          {vis && !travl && (harProsa || foraeldet) && <button className="knap lys" onClick={skrivAlt}>Skriv prosaen igen</button>}
+        </div>
+        {vis && spoerg && (
+          <form className="knap-raekke" onSubmit={brugKode}>
+            <label>Adgangskode til Claude <input type="password" autoFocus value={kode} onChange={e => setKode(e.target.value)} /></label>
+            <button className="knap primaer" disabled={!kode}>Skriv prosaen</button>
+          </form>
+        )}
+        {foraeldet && vis && <div className="besked advarsel">Nøgletallene eller målestokkene er ændret, siden Claude skrev prosaen. Klik "Skriv prosaen igen" – indtil da vises motorens tekst.</div>}
         {fejl && <div className="besked fejl">{fejl}</div>}
       </div>
 
       {OMRAADER.map(o => (
         <Omraade
           key={o.id} a={analyse} id={o.id} prosa={brug.grupper || {}} dk={brug.omraader?.[o.id]?.delkonklusion} saet={saet}
-          kanSkrive={forbundet && !travl} skriv={g => skrivEn(o.id, g)} skrivDk={() => skrivDelkonklusion(o.id)}
+          kanSkrive={kanSkrive} skriv={g => skrivEn(o.id, g)} skrivDk={() => skrivDelkonklusion(o.id)}
         />
       ))}
 
@@ -275,7 +293,7 @@ function Besvarelse ({ analyse, prosa, setProsa, fingeraftryk, foraeldet }) {
           <div><h4>Styrker</h4><ul>{analyse.konklusion.styrker.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
           <div><h4>Svagheder</h4><ul>{analyse.konklusion.svagheder.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
         </div>
-        {forbundet && <button className="knap lys" disabled={!!travl} onClick={skrivKonklusionen}>{travl === 'konklusion' ? 'Skriver …' : 'Skriv trin 4 med Claude'}</button>}
+        {kanSkrive && <button className="knap lys" onClick={skrivKonklusionen}>{travl === 'konklusion' ? 'Skriver …' : 'Skriv trin 4 med Claude'}</button>}
       </section>
     </>
   )

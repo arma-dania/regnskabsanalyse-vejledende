@@ -74,6 +74,11 @@ export function analyser(kase, noegletal = null) {
       grupper,
       delkonklusion: grupper.length ? ren([OMRAADE_KONKLUSION[o.id](ctx).filter(Boolean).join(" ")])[0] || "" : "",
       ikkeRelevant: o.id === "boers" && !grupper.length,
+      // De afkrydsede indekstal står under indtjeningsevnen sammen med nr. 8.
+      ekstraTabel: o.id === "indtjeningsevne" ? (kase.indekstal || []).map(x => ({
+        navn: `Indekstal – ${x.navn}`, tekst: x.serie.map(v => (v == null ? "–" : fmtX(v, 0))),
+        pct: fmtAendringsprocent(aendringsprocent(x.serie)) || "–",
+      })) : [],
       tabel: o.nrs.map(nr => ({
         nr, navn: NT[nr].navn, vaerdier: serie(nr),
         tekst: serie(nr).map(x => formatNt(nr, x, ctx.enh)),
@@ -132,6 +137,22 @@ function traekker(ctx, nr, hvad, op, ned) {
   const s = ctx.serie(nr);
   if (s[0] == null || s[2] == null || !vaesentlig(nr, s[0], s[2])) return null;
   return s[2] > s[0] ? `${op} trækker ${hvad} op.` : `${ned} trækker ${hvad} ned.`;
+}
+
+// Hvad det betyder, at en post vokser hurtigere (eller langsommere) end
+// omsætningen – så indekstallet forbindes med de andre nøgletal.
+const INDEKS_BETYDNING = [
+  [/^(varelager|varedebitorer|andreTilgodehavender|anlaegsaktiver|materielleAnlaeg|immaterielleAnlaeg|finansielleAnlaeg|omsaetningsaktiver|aktiverIAlt)$/,
+    ", så der bindes mere kapital pr. omsat krone – det trækker aktivernes omsætningshastighed ned", ", så der bindes mindre kapital pr. omsat krone – det trækker aktivernes omsætningshastighed op"],
+  [/^(vareforbrug)$/, ", så bruttomarginen presses", ", så bruttomarginen forbedres"],
+  [/^(personaleomkostninger|andreEksterne|afskrivninger|kapacitetsomkostninger)$/, ", så kapacitetsomkostningerne fylder mere og presser overskudsgraden", ", så kapacitetsomkostningerne fylder mindre og løfter overskudsgraden"],
+  [/^(bruttoresultat|resultatPrimaerDrift|resultatFoerSkat|aaretsResultat)$/, ", så væksten er rentabel", ", så væksten ikke er rentabel"],
+  [/^(egenkapital)$/, ", hvilket styrker soliditeten", ", hvilket svækker soliditeten"],
+  [/^(leverandoergaeld|andenKortfristetGaeld|kortfristetGaeld|langfristetGaeld)$/, ", så en større del af væksten er finansieret med fremmedkapital", ", så en mindre del af væksten er finansieret med fremmedkapital"],
+];
+function indeksBetydning(key, hurtigere) {
+  const m = INDEKS_BETYDNING.find(([re]) => re.test(key));
+  return m ? (hurtigere ? m[1] : m[2]) : "";
 }
 
 /** Sætter delsætninger sammen: "a, mens b." */
@@ -492,6 +513,18 @@ const SKRIV = {
           `Omsætningen er vokset (indeks ${fmtX(ix[2].omsaetning, 0)}), men resultatet af primær drift er ikke fulgt med (indeks ${fmtX(ix[2].resultatPrimaerDrift, 0)}). Studerende skriver "virksomheden går godt, omsætningen stiger".`,
           "Hvad er vokset hurtigst – omsætningen eller omkostningerne? Brug indekstallene.",
           "Væksten er ikke rentabel: omkostningerne er vokset mindst lige så hurtigt som salget.");
+    }
+    // De indekstal, brugeren har krydset af, holdt op mod omsætningen.
+    const valgte = ctx.kase.indekstal || [];
+    const omsIx = ctx.kase.indeksOmsaetning || [];
+    const basis = ctx.kase.indeksBasis || ctx.aar[0];
+    for (const x of valgte) {
+      if (x.serie.every(v => v == null)) continue;
+      t1.push(`Indekstallet for ${x.navn.toLowerCase()} (${basis} = 100) er ${x.serie.map((v, i) => `${v == null ? "–" : fmtX(v, 0)} i ${ctx.aar[i]}`).join(", ")}.`);
+      const s = x.serie[2], o = omsIx[2];
+      if (s == null || o == null || Math.abs(s - o) < 3) continue;
+      const hurtigere = s > o;
+      t2.push(`${stort(x.navn.toLowerCase())} er vokset ${hurtigere ? "hurtigere" : "langsommere"} end omsætningen (indeks ${fmtX(s, 0)} mod ${fmtX(o, 0)})${indeksBetydning(x.key, hurtigere)}.`);
     }
     return { trin1: t1, trin2: t2, trin3: t3 };
   },

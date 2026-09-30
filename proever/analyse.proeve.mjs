@@ -204,3 +204,16 @@ test("underviservejledningens kæder: rentabilitet, soliditet og likviditet med 
   assert.match(lik.forbindelser.join(" "), /Arbejdskapital → pengestrøm/);
   assert.match(a.pointer.bindeled, /årets resultat/);
 });
+
+test("afkrydsede indekstal bruges i analysen og står i tabellen", () => {
+  const d = somDataset();
+  d.indeksFelter = ["omsaetning", "varelager", "egenkapital"];
+  const { kase, noegletal } = fraDataset(d);
+  assert.deepEqual(kase.indekstal.map(x => x.key), ["varelager", "egenkapital"]);
+  const a = analyser(kase, noegletal);
+  const g = a.omraader.indtjeningsevne.grupper.find(x => x.id === "indeks");
+  assert.match(g.trin1.join(" "), /Indekstallet for varebeholdninger \(2023 = 100\)/);
+  assert.match(g.trin2.join(" "), /varebeholdninger er vokset (hurtigere|langsommere) end omsætningen/i);
+  assert.equal(a.omraader.indtjeningsevne.ekstraTabel.length, 2);
+  assert.match(a.omraader.indtjeningsevne.ekstraTabel[0].navn, /Indekstal – Varebeholdninger/);
+});

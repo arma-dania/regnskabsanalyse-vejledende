@@ -1,8 +1,8 @@
 // Broen mellem nøgletalsappen og analysemotoren: det omformede regnskab og
 // de beregnede nøgletal går direkte videre til analysen. Intet tastes to gange.
 
-import { iVisningsenhed, withDerived, enhedFaktor } from "../lib/model.js";
-import { beregnAlle } from "../lib/nogletal.js";
+import { iVisningsenhed, withDerived, enhedFaktor, FIELD_MAP } from "../lib/model.js";
+import { beregnAlle, byggIndeksNogletal } from "../lib/nogletal.js";
 import { UDBYTTE_UDGAVE } from "../lib/beretning.js";
 
 // Nøgletalsappens enhed ("1.000 kr.") i analysens korte form ("t.kr.").
@@ -78,6 +78,19 @@ export function fraDataset(dataset, fund = []) {
     n.skoen = Object.values(r).some(x => x.skoen);
     return n;
   });
+  // De indekstal, brugeren har krydset af under "Nøgletal og grafer" – med
+  // det valgte basisår. Omsætningen er allerede nøgletal 8.
+  const ekstra = byggIndeksNogletal(dataset).filter(n => n.nr !== "indeks:omsaetning");
+  const resE = ekstra.length ? beregnAlle(dataset, ekstra) : [];
+  kase.indekstal = ekstra.map(n => {
+    const key = n.nr.slice("indeks:".length);
+    return { key, navn: FIELD_MAP[key]?.label || key, serie: resE.map(r => r[n.nr]?.value ?? null) };
+  }).filter(x => x.serie.some(v => v != null));
+  kase.indeksBasis = aar[dataset.indeksBasisaar ?? 0] || aar[0];
+  kase.indeksOmsaetning = (() => {
+    const oms = byggIndeksNogletal({ ...dataset, indeksFelter: ["omsaetning"] });
+    return beregnAlle(dataset, oms).map(r => r["indeks:omsaetning"]?.value ?? null);
+  })();
   return { kase, noegletal, indlaest };
 }
 

@@ -25,41 +25,40 @@ test("AG = OG × AOH i hvert år", () => {
   for (const b of regnCase(EKSEMPEL)) naer(b.n[1], b.n[2] * b.n[3]);
 });
 
-test("DuPont-dekompositionen går op", () => {
+test("hvert nøgletal og hver gruppe har trin 1-3", () => {
   const a = analyser(EKSEMPEL);
-  for (const d of a.dupont) naer(d.ogEffekt + d.aohEffekt, d.dAG);
-});
-
-test("EKF-afstemningen går op til nøgletal 4", () => {
-  const a = analyser(EKSEMPEL);
-  a.beregnet.forEach((b, i) => {
-    const e = a.ekf.afstemning[i];
-    naer(e.formel + e.rest + e.skat, b.n[4]);
-    naer(e.efterSkat, b.n[4]);
-  });
-});
-
-test("ΔEKF fordeles præcist på AG, r, gearing, rest og skat", () => {
-  const a = analyser(EKSEMPEL);
-  for (const p of a.ekf.perioder) naer(p.agEffekt + p.rEffekt + p.gEffekt + p.restEffekt + p.skatEffekt, p.dEKF);
-});
-
-test("ΔOG = ΔBM − ΔKO-andel + Δrest", () => {
-  const a = analyser(EKSEMPEL);
-  for (const d of a.og) naer(d.dBM - d.dKO + d.dRest, d.dOG);
-});
-
-test("alle fem områder har trin 1-3, og trin 4 har et udkast", () => {
-  const a = analyser(EKSEMPEL);
-  for (const id of ["rentabilitet", "indtjeningsevne", "kapital", "soliditet"]) {
-    const o = a.omraader[id];
-    assert.ok(o.trin1.length, id + " trin 1");
-    assert.ok(o.trin2.length, id + " trin 2");
-    assert.ok(o.trin3.length, id + " trin 3");
-  }
+  for (const id of ["rentabilitet", "indtjeningsevne", "kapital", "soliditet"])
+    for (const g of a.omraader[id].grupper) {
+      assert.ok(g.trin1.length, `${g.id} trin 1`);
+      assert.ok(g.trin2.length, `${g.id} trin 2`);
+      assert.ok(g.trin3.length, `${g.id} trin 3`);
+    }
   assert.ok(a.omraader.boers.ikkeRelevant);
   assert.ok(a.konklusion.udkast.length >= 2);
-  assert.ok(a.faldgruber.length >= 3);
+});
+
+test("grupperne er dem, vi aftalte", () => {
+  const a = analyser(EKSEMPEL);
+  const nrs = id => Object.values(a.omraader).flatMap(o => o.grupper).find(g => g.id === id)?.nrs;
+  assert.deepEqual(nrs("robusthed"), [10, 11, 12]);
+  assert.deepEqual(nrs("anlaeg"), [13, 14, 15]);
+  assert.deepEqual(nrs("arbejdskapital"), [16, 17, 18]);
+  assert.deepEqual(nrs("likviditet"), [23, 24]);
+  assert.deepEqual(nrs("ag"), [1]);
+  assert.deepEqual(nrs("cf"), [19]);
+});
+
+test("en gruppes trin 1 nævner hvert af dens nøgletal", () => {
+  const a = analyser(EKSEMPEL);
+  const g = a.omraader.kapital.grupper.find(x => x.id === "arbejdskapital");
+  const t = g.trin1.join(" ");
+  for (const navn of ["Varelagerets", "Varedebitorernes", "Varekreditorernes"]) assert.match(t, new RegExp(navn));
+});
+
+test("hverken DuPont-figur eller EKF-formel i besvarelsen", () => {
+  const a = analyser(EKSEMPEL);
+  const alt = JSON.stringify(a.omraader);
+  assert.doesNotMatch(alt, /EKF-formlen|afstemning|kædesubstitution|pct\.point står for/);
 });
 
 test("konklusionen ser pengestrømmen og kalder modellen presset", () => {
@@ -73,6 +72,7 @@ test("eksemplet rammer de faldgruber, det er bygget til", () => {
   const a = analyser(EKSEMPEL);
   const temaer = new Set(a.faldgruber.map(f => f.tema));
   assert.ok(temaer.has("sammenhaeng-ubrugt"), "AOH trækker også AG ned");
+  assert.ok(a.faldgruber.every(f => f.gruppe), "hver faldgrube hører til et nøgletal eller en gruppe");
   assert.ok(temaer.has("kun-tal"), "vækst uden resultat");
   assert.ok(temaer.has("noegletal-misforstaaet"), "soliditet falder, EK vokser / r under markedsrenten");
 });
@@ -86,14 +86,14 @@ test("ingen sætning indeholder undefined, NaN eller null", () => {
 test("en tom case giver ingen fejl", () => {
   const tom = { navn: "", enhed: "t.kr.", kolonner: [0, 1, 2, 3].map(i => ({ aar: String(2020 + i), v: {} })) };
   const a = analyser(tom);
-  assert.equal(a.omraader.rentabilitet.trin2.length, 0);
+  assert.ok(Object.values(a.omraader).every(o => o.grupper.length === 0));
 });
 
 test("taltjekket finder tal, der ikke står i analysen", () => {
   const a = analyser(EKSEMPEL);
-  const ok = a.omraader.rentabilitet.trin1[0];
+  const ok = a.omraader.rentabilitet.grupper[0].trin1[0];
   assert.deepEqual(tjekTal(ok, a), []);
-  assert.deepEqual(tjekTal("Afkastningsgraden var 17,3 % i 2025.", a), ["17,3"]);
+  assert.deepEqual(tjekTal("Afkastningsgraden var 97,3 % i 2025.", a), ["97,3"]);
 });
 
 // Eksemplet som nøgletalsappens dataset: samme tal, som hvis de var indlæst
@@ -133,12 +133,4 @@ test("motorens egen regning stemmer med nøgletalsappens", () => {
   for (let i = 0; i < 3; i++)
     for (const nr of [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24])
       naer(egne[i].n[nr], deres[i][nr].value, 1e-6);
-});
-
-test("dekompositionerne går også op på nøgletalsappens tal", () => {
-  const { kase, noegletal } = fraDataset(somDataset());
-  const a = analyser(kase, noegletal);
-  for (const d of a.dupont) naer(d.ogEffekt + d.aohEffekt, d.dAG, 1e-9);
-  a.beregnet.forEach((b, i) => naer(a.ekf.afstemning[i].efterSkat, b.n[4], 1e-9));
-  for (const p of a.ekf.perioder) naer(p.agEffekt + p.rEffekt + p.gEffekt + p.restEffekt + p.skatEffekt, p.dEKF, 1e-9);
 });

@@ -14,7 +14,7 @@ Appen er til underviseren: den skriver hele analysen.
 | 1 Indlæs regnskaber | CVR-opslag, iXBRL eller PDF – som i nøgletalsappen |
 | 2 Analyseform | Omform resultatopgørelsen: flyt og læg poster sammen |
 | 3 Nøgletal og grafer | De 28 nøgletal, grafer, Word og Excel |
-| 4 Vejledende besvarelse | Målestokke, analysen område for område (trin 1-3), konklusionen (trin 4) |
+| 4 Vejledende besvarelse | Målestokke, trappen for hvert nøgletal og hver nøgletalsgruppe (trin 1-3), konklusionen (trin 4) |
 | 5 Underviservejledning | Det store billede, forløb, tavleskitser, faldgruber med spørgsmål og svar |
 
 ## De fem analyseområder
@@ -32,22 +32,37 @@ Skal en definition ændres, er det den ene fil, der skal rettes — grafer, Word
 
 ## Arbejdsdelingen: motoren regner, Claude formulerer
 
-**Motoren** (`src/analyse/analyse.js`) får nøgletallene direkte fra trin 3 (`src/analyse/fraDataset.js`) og regner alt, der kan regnes, uden AI:
+**Motoren** (`src/analyse/analyse.js`) får nøgletallene direkte fra trin 3
+(`src/analyse/fraDataset.js`) og skriver **hvert nøgletal – eller hver gruppe
+af nøgletal, der hører sammen – op ad formuleringstrappen**, uden AI:
 
-- **Trin 1:** retning og størrelse for hvert nøgletal over tre år. En ændring
-  nævnes, når den er mindst ½ procentpoint eller 5 %.
-- **Trin 2:**
-  - ΔAG fordelt på overskudsgrad og omsætningshastighed ved kædesubstitution.
-  - ΔOG fordelt på bruttomargin og kapacitetsomkostninger.
-  - ΔAOH forklaret med kapitalbindingen pr. 100 kr. omsætning.
-  - EKF-formlen med afstemning til nøgletal 4.
-  - ΔEKF fordelt på AG, r, gearing, øvrige finansielle poster og skat.
-- **Trin 3:** de fire målestokke, som aftalt – sidste år, markedsrenten,
+- **Trin 1 Konstatering:** retning og størrelse over tre år. En ændring nævnes,
+  når den er mindst ½ procentpoint eller 5 %. I en gruppe nævnes hvert nøgletal.
+- **Trin 2 Forklaring:** tællerens og nævnerens udvikling (fx bruttoresultat mod
+  omsætning) og sammenhængen med andre nøgletal – ligger årsagen i et andet
+  nøgletal, henvises dertil.
+- **Trin 3 Vurdering:** de fire målestokke – sidste år, markedsrenten,
   tommelfingerreglerne og forretningsmodellen. Branchetal bruges ikke.
-- **Trin 4:** styrker, svagheder, afvigelser fra profilen, en vurdering
-  (holder / presset / under forandring) og anbefalinger, der følger af tallene.
+- **Trin 4 Forretningsmodellen** skrives i den samlede konklusion: styrker,
+  svagheder, afvigelser fra profilen, en vurdering (holder / presset / under
+  forandring) og anbefalinger, der følger af tallene.
 - **Faldgruber:** hvor netop dette regnskab inviterer til de typiske fejl fra
-  træningsappens temaliste – med et stilladsspørgsmål og svaret.
+  træningsappens temaliste – knyttet til nøgletallet, med et
+  stilladsspørgsmål og svaret.
+
+**Grupperne** (`src/analyse/grupper.js`). Nøgletal skrives sammen, når de
+deler forklaring og målestok – ellers ville samme argument stå flere gange:
+
+| Gruppe | Hvorfor |
+| --- | --- |
+| Kapacitetsgrad, nulpunkt og sikkerhedsmargin (10-12) | Matematisk samme information: SM = 1 − 1/KG |
+| Anlæggenes omsætningshastigheder (13-15) | Samme tæller; nævnerne er dele af samme helhed |
+| Varelager, debitorer og kreditorer (16-18) | Ét kredsløb: lagerdage + debitordage − kreditordage |
+| Likviditetsgrad I og II (23-24) | Forskellen er kun varelageret |
+| P/E og kurs/indre værdi (26, 28) | Markedets pris mod et regnskabstal |
+
+Resten skrives hver for sig – også AG, OG og AOH, som forklares i hver sit
+område. AG's trappe henviser til de to andre i stedet for at gentage dem.
 
 **Claude** (`netlify/functions/skriv.mjs`) får motorens fund som data og
 omskriver dem til prosa. Claude må ikke regne eller finde på tal. Hvert tal i
@@ -61,15 +76,9 @@ skrevet igen. Uden Claude bruger Word-dokumenterne motorens egne sætninger.
   skriver altid om præcis de tal, der står i trin 3. Motorens egen regning
   bruges kun til mellemregningerne, og en prøve kontrollerer, at den giver
   samme tal som nøgletalsappen.
-- **EKF-formlen** EKF = AG + (AG − r) · FK/EK gælder før skat. Nøgletal 4 er
-  efter skat og indeholder finansielle indtægter. Derfor vises en
-  afstemning: formel + øvrige finansielle poster − skat = nøgletal 4.
 - **r** er regnet på al fremmedkapital, også rentefri leverandørgæld. Den
   faktiske lånerente er derfor højere. Det står i trin 3, og der er en
   faldgrube, når r ligger under markedsrenten.
-- **Kædesubstitution** i rækkefølgen OG → AOH (og AG → r → G for EKF). En
-  anden rækkefølge fordeler samspillet lidt anderledes. Summen går altid op,
-  og det kontrollerer prøverne.
 - **Markedsrenten** er den 10-årige danske statsobligation. Omkring 24.
   september 2026 lå den på ca. 3,4 %. Den tastes pr. år, og
   `MARKEDSRENTE_FORSLAG` i `src/analyse/maalestok.js` bruges, når feltet er tomt.
@@ -99,7 +108,7 @@ Modellen er Claude Opus 5.5 med effort `low` (`netlify/functions/lib/claude.mjs`
 
 ```bash
 npm install
-npm run proeve         # prøverne: dekompositionerne går op, samme tal som trin 3, Word, adgangskode
+npm run proeve         # prøverne: trappen for hvert nøgletal, samme tal som trin 3, Word, adgangskode
 npm run dev            # http://localhost:5173
 ```
 
@@ -249,8 +258,9 @@ src/lib/exportExcel.js  Fire ark: analyseform, nøgletal, beregningsgrundlag, de
 src/lib/exportWord.js   Rapport med tabeller, grafer og kommentarfelter
 src/lib/omformning.js   Forslag til sammenlægning af poster i analyseformen
 src/analyse/fraDataset.js  Broen fra nøgletallene i trin 3 til analysen
-src/analyse/analyse.js     Analysemotoren: trin 1-3, dekompositioner, faldgruber, trin 4-udkast
-src/analyse/beregning.js   Mellemregninger, EKF-afstemning og formatering
+src/analyse/analyse.js     Analysemotoren: trappen pr. nøgletal og gruppe, faldgruber, trin 4-udkast
+src/analyse/grupper.js     Hvilke nøgletal der skrives op ad trappen sammen
+src/analyse/beregning.js   Mellemregninger og formatering
 src/analyse/maalestok.js   Markedsrente, tommelfingerregler, væsentlighed og forretningsmodeller
 src/analyse/temaer.js      Formuleringstrappen og temaerne (samme ordlyd som træningsappen)
 src/analyse/tjek.js        Taltjekket af Claudes tekst

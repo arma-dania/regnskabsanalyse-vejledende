@@ -20,17 +20,22 @@ async function kald(del, data, kode) {
 
 export const tjekKode = kode => kald("tjek", {}, kode);
 
-const tabelTekst = (a, o) => o.tabel.map(r => `${r.nr}. ${r.navn}: ${a.aar.map((y, i) => `${y} ${r.tekst[i]}`).join(", ")}`).join("\n");
+const tabelTekst = (a, o, nrs) => o.tabel.filter(r => nrs.includes(r.nr))
+  .map(r => `${r.nr}. ${r.navn}: ${a.aar.map((y, i) => `${y} ${r.tekst[i]}`).join(", ")}`).join("\n");
 
-export function skrivOmraade(a, id, kode) {
-  const o = a.omraader[id];
-  return kald("omraade", {
+/** Alle nøgletal og grupper i den rækkefølge, de skrives: [{ omraade, gruppe }]. */
+export const alleGrupper = a => OMRAADER.flatMap(o => a.omraader[o.id].grupper.map(g => ({ omraade: o.id, gruppe: g })));
+
+export function skrivGruppe(a, oid, g, kode) {
+  const o = a.omraader[oid];
+  return kald("gruppe", {
     virksomhed: a.navn,
     omraade: o.navn,
-    tabel: tabelTekst(a, o),
-    trin1: o.trin1.join("\n"),
-    trin2: o.trin2.join("\n"),
-    trin3: o.trin3.join("\n"),
+    titel: g.titel,
+    tabel: tabelTekst(a, o, g.nrs),
+    trin1: g.trin1.join("\n"),
+    trin2: g.trin2.join("\n"),
+    trin3: g.trin3.join("\n"),
   }, kode);
 }
 
@@ -41,9 +46,11 @@ export function skrivKonklusion(a, prosa, kode) {
     forretningsmodel: a.forretningsmodel,
     profil: a.profil ? `${a.profil.navn}: ${a.profil.kendetegn}` : "",
     omraader: OMRAADER.filter(o => !a.omraader[o.id].ikkeRelevant).map(o => {
-      const x = prosa[o.id];
       const om = a.omraader[o.id];
-      return `${om.navn}:\n` + [1, 2, 3].map(n => x?.[`trin${n}`] || om[`trin${n}`].join(" ")).join("\n");
+      return `${om.navn}:\n` + om.grupper.map(g => {
+        const x = prosa.grupper?.[g.id];
+        return `${g.titel}: ` + [1, 2, 3].map(n => x?.[`trin${n}`] || g[`trin${n}`].join(" ")).join(" ");
+      }).join("\n");
     }).join("\n\n"),
     styrker: k.styrker.join("\n"),
     svagheder: k.svagheder.join("\n"),

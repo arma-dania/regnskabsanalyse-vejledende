@@ -377,7 +377,7 @@ const VELKOMST_TRIN = [
   },
   {
     navn: 'Vejledende besvarelse',
-    tekst: 'Nøgletallene analyseres op ad formuleringstrappen: konstatering, forklaring med DuPont og EKF-formlen, vurdering mod markedsrente, tommelfingerregler og forretningsmodel – og en samlet konklusion.'
+    tekst: 'Hvert nøgletal – eller hver gruppe af nøgletal, der hører sammen – skrives op ad formuleringstrappen: konstatering, forklaring og vurdering mod sidste år, markedsrente, tommelfingerregler og forretningsmodel. Til sidst en samlet konklusion.'
   },
   {
     navn: 'Underviservejledning',

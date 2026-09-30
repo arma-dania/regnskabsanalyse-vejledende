@@ -2,7 +2,7 @@
 // beregning (src/lib/nogletal.js) og overskriver dem, der regnes her – så
 // analysen altid skriver om præcis de tal, der står i tabellerne og graferne.
 // Regningen her er den samme efter Bilag 2 og bruges til mellemregningerne
-// (gennemsnit, kapitalbinding, EKF-afstemning) og i prøverne.
+// (gennemsnit, kapitalbinding, indekstal) og i prøverne.
 //
 // En case har fire kolonner: [primo, år 1, år 2, år 3]. Primo er det ældste
 // regnskabs sammenligningsår og bruges kun til gennemsnit og lager primo.
@@ -137,37 +137,9 @@ export function regnAar(kase, i, eksterne = null) {
       debitorer: pct(v.varedebitorer, v.omsaetning),
       oevrige: v.omsaetningsaktiver == null ? null : pct(v.omsaetningsaktiver - (v.varelager ?? 0) - (v.varedebitorer ?? 0), v.omsaetning),
     },
-    ekf: ekfAfstemning(v, gEK, n[1], n[5], n[6]),
     skoen: skoen || !!eksterne?.skoen,
   };
   return { n, mellem };
-}
-
-/**
- * EKF-formlen og afstemningen til nøgletal 4.
- *
- * Formlen EKF = AG + (AG − r) · FK/EK holder kun før skat, og kun når
- * resultat før skat = primær drift − renteomkostninger. Resten – finansielle
- * indtægter og andre poster – og skatten vises som egne linjer, så
- * afstemningen altid går op til det EKF, nøgletalsappen viser.
- */
-export function ekfAfstemning(v, gEK, ag, r, g) {
-  if ([ag, r, g, gEK].some(x => x == null) || !gEK) return null;
-  const gearingsbidrag = (ag - r) * g;
-  const formel = ag + gearingsbidrag;
-  const foerSkat = pct(v.resultatFoerSkat, gEK);
-  const efterSkat = pct(v.aaretsResultat, gEK);
-  if (foerSkat == null || efterSkat == null) return { ag, r, g, gearingsbidrag, formel, rentemarginal: ag - r };
-  return {
-    ag, r, g,
-    rentemarginal: ag - r,
-    gearingsbidrag,
-    formel,
-    rest: foerSkat - formel, // finansielle indtægter m.m.
-    foerSkat,
-    skat: efterSkat - foerSkat, // negativ ved skatteudgift
-    efterSkat,
-  };
 }
 
 /** eksterne: nøgletalsappens tal pr. år, [{ 1: 9.0, 2: 3.0, … }, …] */

@@ -311,17 +311,12 @@ mark { background: #fbe7b5; }
 .to-spalter { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 @media (max-width: 700px) { .to-spalter { grid-template-columns: 1fr; } }
 
-.dupont { background: var(--papir); border-radius: var(--radius); padding: 14px; margin: 8px 0 14px; }
-.dp-niveau { display: flex; justify-content: center; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
-.dp-grene { display: flex; justify-content: center; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-.dp-gren { display: flex; flex-direction: column; align-items: center; gap: 4px; border-top: 2px solid var(--petrol); padding-top: 8px; text-align: center; }
-.dp-boks { border: 2px solid var(--petrol); background: var(--kort); border-radius: var(--radius); padding: 4px 10px; text-align: center; min-width: 150px; }
-.dp-boks.top { background: var(--petrol); color: #fff; }
-.dp-boks.lav { border-width: 1px; min-width: 110px; }
-.dp-titel { font-size: 12px; font-weight: 600; }
-.dp-tal { font-family: 'IBM Plex Mono', monospace; font-size: 13px; white-space: nowrap; }
-.dp-tegn { font-weight: 700; color: var(--petrol); }
-.dp-tegn.stor { font-size: 22px; margin-top: 16px; }
+.noegletal-trappe { border-top: 1px solid var(--linje-svag); padding-top: 12px; margin-top: 14px; }
+.noegletal-trappe:first-of-type { border-top: none; margin-top: 4px; }
+.noegletal-trappe h4 { font-family: 'IBM Plex Serif', Georgia, serif; font-size: 16px; margin: 0; }
+.trin-blok h5 { margin: 8px 0 2px; font-size: 13px; }
+.trin-blok p { margin: 2px 0 6px; max-width: 85ch; }
+details summary { cursor: pointer; font-size: 13px; color: var(--petrol); margin: 4px 0; }
 
 .faldgrube { border-left: 3px solid var(--okker); background: #fbf4e6; padding: 8px 14px; border-radius: 0 var(--radius) var(--radius) 0; margin: 10px 0; }
 .faldgrube p { margin: 3px 0; font-size: 14px; }

@@ -44,6 +44,7 @@ export function skrivGruppe(a, oid, g, kode) {
   const o = a.omraader[oid];
   return kald("gruppe", {
     virksomhed: a.navn,
+    brutto: !!a.brutto,
     omraade: o.navn,
     titel: g.titel,
     tabel: tabelTekst(a, o, g.nrs),
@@ -59,6 +60,7 @@ export function skrivOmraade(a, oid, prosa, kode) {
   const o = a.omraader[oid];
   return kald("omraade", {
     virksomhed: a.navn,
+    brutto: !!a.brutto,
     omraade: o.navn,
     indledning: o.indledning || "",
     tabel: tabelTekst(a, o, o.tabel.map(r => r.nr)),
@@ -75,6 +77,7 @@ export async function skrivKonklusion(a, prosa, kode) {
   const k = a.konklusion;
   const { samlet } = await kald("samlet", {
     virksomhed: a.navn,
+    brutto: !!a.brutto,
     omraader: OMRAADER.filter(o => !a.omraader[o.id].ikkeRelevant).map(o => {
       const om = a.omraader[o.id];
       return `${om.navn} – delkonklusion: ${prosa.omraader?.[o.id]?.delkonklusion || om.delkonklusion}`;
@@ -86,6 +89,7 @@ export async function skrivKonklusion(a, prosa, kode) {
   }, kode);
   const { trin4 } = await kald("trin4", {
     virksomhed: a.navn,
+    brutto: !!a.brutto,
     forretningsmodel: a.forretningsmodel,
     profil: a.profil ? `${a.profil.navn}: ${a.profil.kendetegn}` : "",
     samlet,

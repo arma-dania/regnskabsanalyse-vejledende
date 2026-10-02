@@ -44,6 +44,12 @@ export function analyser(kase, noegletal = null) {
     udbytte: kase.udbytte || [{}, {}, {}],
     beretning: kase.beretning || "",
     brugCitater: kase.brugCitater !== false,
+    // Klasse B: nøgletallene, der normalt bygger på omsætningen, er regnet
+    // på bruttofortjenesten. Teksten skal sige det – og ikke tale om
+    // omsætning, bruttomargin eller sammenligning med andre.
+    brutto: !!kase.bruttoBasis,
+    oms: kase.bruttoBasis ? "bruttofortjenesten" : "omsætningen",
+    omsKey: kase.bruttoBasis ? "bruttoresultat" : "omsaetning",
     faldgruber: [],
   };
 
@@ -56,10 +62,10 @@ export function analyser(kase, noegletal = null) {
         const t = SKRIV[g.id](ctx, g);
         return {
           id: g.id, nrs: g.nrs,
-          titel: g.titel || NT[g.nrs[0]].navn,
-          trin1: ren(t.trin1), trin2: ren(t.trin2), trin3: ren(t.trin3),
+          titel: g.titel || (ctx.brutto && NAVN_BRUTTO[g.nrs[0]]) || NT[g.nrs[0]].navn,
+          trin1: tilBrutto(ctx, ren(t.trin1)), trin2: tilBrutto(ctx, ren(t.trin2)), trin3: tilBrutto(ctx, ren(t.trin3)),
           noegle: [
-            ...g.nrs.filter(nr => serie(nr)[2] != null).map(nr => `${NT[nr].navn}: ${serie(nr).map(x => formatNt(nr, x, ctx.enh)).join(" → ")}`),
+            ...g.nrs.filter(nr => serie(nr)[2] != null).map(nr => `${(ctx.brutto && NAVN_BRUTTO[nr]) || NT[nr].navn}: ${serie(nr).map(x => formatNt(nr, x, ctx.enh)).join(" → ")}`),
             ...(g.id === "sol" && ctx.udbytte.some(u => u?.foreslaaet != null) ? [`Udbytte for året: ${ctx.udbytte.map(u => fmtBeloeb(u?.foreslaaet, ctx.enh)).join(" → ")}`] : []),
             ...(g.id === "sol" && ctx.udbytte.some(u => u?.betalt) ? [`Udbytte betalt i året: ${ctx.udbytte.map(u => fmtBeloeb(u?.betalt, ctx.enh)).join(" → ")}`] : []),
           ],
@@ -72,7 +78,7 @@ export function analyser(kase, noegletal = null) {
       navn: o.navn,
       indledning: ren([INDLEDNING[o.id]?.(ctx)])[0] || "",
       grupper,
-      delkonklusion: grupper.length ? ren([OMRAADE_KONKLUSION[o.id](ctx).filter(Boolean).join(" ")])[0] || "" : "",
+      delkonklusion: grupper.length ? tilBrutto(ctx, ren([OMRAADE_KONKLUSION[o.id](ctx).filter(Boolean).join(" ")]))[0] || "" : "",
       ikkeRelevant: o.id === "boers" && !grupper.length,
       // De afkrydsede indekstal står under indtjeningsevnen sammen med nr. 8.
       ekstraTabel: o.id === "indtjeningsevne" ? (kase.indekstal || []).map(x => ({
@@ -80,7 +86,7 @@ export function analyser(kase, noegletal = null) {
         pct: fmtAendringsprocent(aendringsprocent(x.serie)) || "–",
       })) : [],
       tabel: o.nrs.map(nr => ({
-        nr, navn: NT[nr].navn, vaerdier: serie(nr),
+        nr, navn: (ctx.brutto && NAVN_BRUTTO[nr]) || NT[nr].navn, vaerdier: serie(nr),
         tekst: serie(nr).map(x => formatNt(nr, x, ctx.enh)),
         aendring: [formatAendring(nr, serie(nr)[0], serie(nr)[1]), formatAendring(nr, serie(nr)[1], serie(nr)[2])],
         // Fra første til sidste år – som "Ændring i %" i nøgletalsappen.
@@ -90,6 +96,10 @@ export function analyser(kase, noegletal = null) {
   }
   ctx.gruppe = { omraade: "konklusion", gruppe: "konklusion" };
   const konklusion = konkluder(ctx);
+  if (ctx.brutto) {
+    for (const k of ["samlet", "udkast", "styrker", "svagheder", "anbefalinger", "afvigelser"]) if (Array.isArray(konklusion[k])) konklusion[k] = tilBrutto(ctx, konklusion[k]);
+    for (const f of ctx.faldgruber) for (const k of ["forventet", "spoergsmaal", "svar"]) if (f[k]) f[k] = bruttoOrd(f[k]);
+  }
   const pointer = vejledningsPointer(ctx, omraader);
 
   return {
@@ -101,11 +111,33 @@ export function analyser(kase, noegletal = null) {
     beretning: ctx.beretning,
     brugCitater: ctx.brugCitater,
     udbytte: ctx.udbytte,
+    brutto: ctx.brutto,
     skoen: beregnet.some(b => b.mellem.skoen),
   };
 }
 
 /* ====================== Hjælpere ====================== */
+
+// Indekstallet (nr. 8) er regnet på bruttofortjenesten, men de faste
+// formuleringer bruger nøgletallets almindelige navn.
+const bruttoOrd = s => s
+  .replace(/([Ii])ndekstallet for omsætningen/g, "$1ndekstallet for bruttofortjenesten")
+  .replace(/([Pp])engestrømmen fra (primær drift|driften) i procent af omsætningen/g, "$1engestrømmen fra $2 i procent af bruttofortjenesten");
+const tilBrutto = (ctx, liste) => (ctx.brutto ? liste.map(bruttoOrd) : liste);
+
+// Navnene i nøgletalsappen, når nøgletallet er regnet på bruttofortjenesten.
+const NAVN_BRUTTO = {
+  2: "Overskudsgrad (af bruttofortjeneste)",
+  3: "Aktivernes omsætningshastighed (af bruttofortjeneste)",
+  8: "Indekstal – bruttofortjeneste",
+  13: "Anlægsaktivernes omsætningshastighed (af bruttofortjeneste)",
+  14: "Immaterielle anlægsaktivers omsætningshastighed (af bruttofortjeneste)",
+  15: "Materielle anlægsaktivers omsætningshastighed (af bruttofortjeneste)",
+  19: "Pengestrøm fra primær drift / bruttofortjeneste",
+};
+// Profilens tal bygger på omsætningen og kan ikke holdes op mod tal regnet
+// på bruttofortjenesten.
+const IKKE_MED_BRUTTO = new Set(["bm", "og", "aoh", "lager", "deb"]);
 
 // Fjerner tomme sætninger og dobbelt punktum efter en forkortelse ("t.kr..").
 const ren = liste => liste.filter(Boolean).map(s => s.replace(/\.\.(\s|$)/g, ".$1"));
@@ -216,7 +248,7 @@ function sidsteAar(ctx, nr) {
 
 function profilSaetning(ctx, noegle) {
   const p = ctx.profil;
-  if (!p) return null;
+  if (!p || (ctx.brutto && IKKE_MED_BRUTTO.has(noegle))) return null;
   const nr = PROFILNOEGLE[noegle];
   const v = ctx.sidst(nr);
   const pv = p.v[noegle];
@@ -360,7 +392,7 @@ const SKRIV = {
     if (d && vaesentlig(1, s[0], s[2])) {
       const driver = Math.abs(d.og) >= Math.abs(d.aoh) ? "og" : "aoh";
       t2.push(driver === "og"
-        ? "Udviklingen kommer primært fra overskudsgraden – altså fra indtjeningen på hver omsat krone. Hvorfor overskudsgraden har udviklet sig sådan, undersøges nærmere under indtjeningsevnen."
+        ? `Udviklingen kommer primært fra overskudsgraden – altså fra ${ctx.brutto ? "hvor meget der er tilbage af hver krone i bruttofortjeneste" : "indtjeningen på hver omsat krone"}. Hvorfor overskudsgraden har udviklet sig sådan, undersøges nærmere under indtjeningsevnen.`
         : "Udviklingen kommer primært fra omsætningshastigheden – altså fra, hvor effektivt kapitalen udnyttes. Hvorfor omsætningshastigheden har udviklet sig sådan, undersøges nærmere under kapitaltilpasningen.");
       const mindre = driver === "og" ? d.aoh : d.og;
       if (Math.sign(mindre) === Math.sign(d.og + d.aoh) && Math.abs(mindre) >= Math.abs(d.og + d.aoh) / 4)
@@ -371,7 +403,7 @@ const SKRIV = {
     } else if (d && vaesentlig(2, og[0], og[2]) && vaesentlig(3, aoh[0], aoh[2])) {
       t2.push("De to faktorer har trukket i hver sin retning og har stort set udlignet hinanden.");
     }
-    const p = ctx.profil, ag = ctx.sidst(1);
+    const p = ctx.brutto ? null : ctx.profil, ag = ctx.sidst(1);
     const typisk = p ? p.v.og * p.v.aoh : null;
     const m = p && ag != null ? modProfil(ag, typisk) : null;
     return {
@@ -389,6 +421,22 @@ const SKRIV = {
 
   og(ctx) {
     const [ko0, ko2] = mellemPer(ctx, "koAndel");
+    if (ctx.brutto) {
+      faldgrube(ctx, "noegletal-misforstaaet",
+        "Overskudsgraden er regnet af bruttofortjenesten og er derfor langt højere end en almindelig overskudsgrad. Forvent, at nogen sammenligner den med branchetal eller med virksomheder, der oplyser omsætning.",
+        "Hvad står i nævneren, og hvad betyder det for, hvad tallet kan sammenlignes med?",
+        "Tallet viser, hvor stor en del af bruttofortjenesten der bliver til resultat af primær drift. Det kan kun bruges til at følge udviklingen i virksomheden selv.");
+      return {
+        trin1: [...trin1(ctx, [2]), "Regnskabet er i klasse B og oplyser ikke omsætningen, så overskudsgraden er regnet af bruttofortjenesten: den viser, hvor stor en del af bruttofortjenesten der er tilbage som resultat af primær drift."],
+        trin2: [
+          saetning(postUdv(ctx, "resultatPrimaerDrift", "resultatet af primær drift"), postUdv(ctx, "bruttoresultat", "bruttofortjenesten")),
+          ko0 != null && ko2 != null
+            ? `Kapacitetsomkostningerne gik fra ${fmtPct(ko0)} til ${fmtPct(ko2)} af bruttofortjenesten. Overskudsgraden er det, der er tilbage (100 % minus kapacitetsomkostningernes andel). Hvorfor, undersøges nærmere under indtjeningsevnen.`
+            : null,
+        ],
+        trin3: [sidsteAar(ctx, 2), "Fordi tallet er regnet af bruttofortjenesten, kan det ikke sammenlignes med en almindelig overskudsgrad eller med branchetal – kun med virksomhedens egne tidligere år."],
+      };
+    }
     return {
       trin1: trin1(ctx, [2]),
       trin2: [
@@ -408,11 +456,11 @@ const SKRIV = {
       .map(k => ({ k, a: b0[k], b: b2[k], d: b2[k] - b0[k] })).sort((x, y) => Math.abs(y.d) - Math.abs(x.d));
     const [gA0, gA2] = mellemPer(ctx, "gA");
     return {
-      trin1: trin1(ctx, [3]),
+      trin1: [...trin1(ctx, [3]), ctx.brutto ? "Omsætningshastigheden er regnet på bruttofortjenesten: den viser, hvor mange kroner bruttofortjeneste hver krone i aktiver skaber." : null],
       trin2: [
-        saetning(postUdv(ctx, "omsaetning", "omsætningen"), udv("de gennemsnitlige aktiver", gA0, gA2)),
+        saetning(postUdv(ctx, ctx.omsKey, ctx.oms), udv("de gennemsnitlige aktiver", gA0, gA2)),
         poster.length && Math.abs(poster[0].d) >= 1
-          ? `Pr. 100 kr. omsætning er den største ændring i ${NAVN[poster[0].k]}: fra ${fmtX(poster[0].a, 0)} til ${fmtX(poster[0].b, 0)} kr. (ultimo). Hvorfor, undersøges nærmere under kapitaltilpasningen.`
+          ? `Pr. 100 kr. ${ctx.brutto ? "bruttofortjeneste" : "omsætning"} er den største ændring i ${NAVN[poster[0].k]}: fra ${fmtX(poster[0].a, 0)} til ${fmtX(poster[0].b, 0)} kr. (ultimo). Hvorfor, undersøges nærmere under kapitaltilpasningen.`
           : null,
       ],
       trin3: [sidsteAar(ctx, 3), profilSaetning(ctx, "aoh")],
@@ -529,15 +577,16 @@ const SKRIV = {
           ? " Det trækker overskudsgraden ned."
           : ix[2].kapacitetsomkostninger < ix[2].bruttoresultat - 2 ? " Det trækker overskudsgraden op." : ""));
     const t3 = [sidsteAar(ctx, 8)];
+    if (ctx.brutto) t1.push("Regnskabet oplyser ikke omsætningen, så bruttofortjenesten er det bedste mål for aktiviteten. Den påvirkes både af, hvor meget der sælges, og af, hvor meget der tjenes pr. salg.");
     if (ix[2].omsaetning != null && ix[2].resultatPrimaerDrift != null) {
       const rentabel = ix[2].resultatPrimaerDrift >= ix[2].omsaetning - 5;
       t3.push(rentabel
-        ? "Væksten er rentabel: resultatet af primær drift er vokset mindst i takt med omsætningen."
-        : "Væksten er ikke rentabel: resultatet af primær drift er ikke fulgt med omsætningen.");
+        ? `Væksten er rentabel: resultatet af primær drift er vokset mindst i takt med ${ctx.oms}.`
+        : `Væksten er ikke rentabel: resultatet af primær drift er ikke fulgt med ${ctx.oms}.`);
       if (!rentabel && ix[2].omsaetning > 102)
         faldgrube(ctx, "kun-tal",
-          `Omsætningen er vokset (indeks ${fmtX(ix[2].omsaetning, 0)}), men resultatet af primær drift er ikke fulgt med (indeks ${fmtX(ix[2].resultatPrimaerDrift, 0)}). Studerende skriver "virksomheden går godt, omsætningen stiger".`,
-          "Hvad er vokset hurtigst – omsætningen eller omkostningerne? Brug indekstallene.",
+          `${stort(ctx.oms)} er vokset (indeks ${fmtX(ix[2].omsaetning, 0)}), men resultatet af primær drift er ikke fulgt med (indeks ${fmtX(ix[2].resultatPrimaerDrift, 0)}). Studerende skriver "virksomheden går godt, ${ctx.brutto ? "bruttofortjenesten" : "omsætningen"} stiger".`,
+          `Hvad er vokset hurtigst – ${ctx.oms} eller omkostningerne? Brug indekstallene.`,
           "Væksten er ikke rentabel: omkostningerne er vokset mindst lige så hurtigt som salget.");
     }
     // De indekstal, brugeren har krydset af, holdt op mod omsætningen.
@@ -550,7 +599,8 @@ const SKRIV = {
       const s = x.serie[2], o = omsIx[2];
       if (s == null || o == null || Math.abs(s - o) < 3) continue;
       const hurtigere = s > o;
-      t2.push(`${stort(x.navn.toLowerCase())} er vokset ${hurtigere ? "hurtigere" : "langsommere"} end omsætningen (indeks ${fmtX(s, 0)} mod ${fmtX(o, 0)})${indeksBetydning(x.key, hurtigere)}.`);
+      const betydning = indeksBetydning(x.key, hurtigere);
+      t2.push(`${stort(x.navn.toLowerCase())} er vokset ${hurtigere ? "hurtigere" : "langsommere"} end ${ctx.oms} (indeks ${fmtX(s, 0)} mod ${fmtX(o, 0)})${ctx.brutto ? betydning.replace("pr. omsat krone", "pr. krone bruttofortjeneste").replace(/, så bruttomarginen (presses|forbedres)/, "") : betydning}.`);
     }
     return { trin1: t1, trin2: t2, trin3: t3 };
   },
@@ -575,12 +625,15 @@ const SKRIV = {
     return {
       trin1: trin1(ctx, [10, 11, 12]),
       trin2: [
-        "De tre nøgletal bygger på samme forhold: kapacitetsgraden er bruttoresultatet divideret med kapacitetsomkostningerne, sikkerhedsmarginen er 1 − 1/kapacitetsgraden, og nulpunktet er kapacitetsomkostningerne divideret med bruttomarginen. De flytter sig derfor sammen.",
+        ctx.brutto
+          ? "Kapacitetsgraden er bruttofortjenesten divideret med kapacitetsomkostningerne. Nulpunktsomsætning og sikkerhedsmargin kræver omsætningen og kan ikke regnes, men kapacitetsgraden hænger direkte sammen med overskudsgraden af bruttofortjenesten: overskudsgraden er 1 − 1/kapacitetsgraden."
+          : "De tre nøgletal bygger på samme forhold: kapacitetsgraden er bruttoresultatet divideret med kapacitetsomkostningerne, sikkerhedsmarginen er 1 − 1/kapacitetsgraden, og nulpunktet er kapacitetsomkostningerne divideret med bruttomarginen. De flytter sig derfor sammen.",
         saetning(postUdv(ctx, "bruttoresultat", "bruttoresultatet"), postUdv(ctx, "kapacitetsomkostninger", "kapacitetsomkostningerne")),
         nul && aarsager.length ? `${stort(nul)}, fordi ${aarsager.join(", og ")}.` : null,
       ],
       trin3: [
-        sidsteAar(ctx, 12),
+        ctx.brutto ? sidsteAar(ctx, 10) : sidsteAar(ctx, 12),
+        ctx.brutto && ctx.sidst(10) > 1 ? `Bruttofortjenesten kan falde ${fmtPct((1 - 1 / ctx.sidst(10)) * 100)}, før resultatet af primær drift er nul (1 − 1/kapacitetsgraden).` : null,
         ctx.sidst(12) != null ? `Omsætningen kan falde ${fmtPct(ctx.sidst(12))}, før resultatet af primær drift er nul. Jo lavere sikkerhedsmargin, jo mindre skal der til, før virksomheden taber penge på driften.` : null,
       ],
     };
@@ -599,9 +652,11 @@ const SKRIV = {
     return {
       trin1: t1,
       trin2: [
-        saetning(postUdv(ctx, "omsaetning", "omsætningen"), postUdv(ctx, "anlaegsaktiver", "anlægsaktiverne")),
+        saetning(postUdv(ctx, ctx.omsKey, ctx.oms), postUdv(ctx, "anlaegsaktiver", "anlægsaktiverne")),
         saetning(postUdv(ctx, "materielleAnlaeg", "de materielle anlægsaktiver"), postUdv(ctx, "immaterielleAnlaeg", "de immaterielle anlægsaktiver")),
-        "Omsætningshastighederne stiger, når salget vokser hurtigere end anlæggene, og falder, når der investeres forud for salget.",
+        ctx.brutto
+          ? "Omsætningshastighederne er regnet på bruttofortjenesten. De stiger, når bruttofortjenesten vokser hurtigere end anlæggene, og falder, når der investeres forud for indtjeningen."
+          : "Omsætningshastighederne stiger, når salget vokser hurtigere end anlæggene, og falder, når der investeres forud for salget.",
         traekker(ctx, 13, "aktivernes omsætningshastighed", "Den bedre udnyttelse af anlæggene", "Den dårligere udnyttelse af anlæggene"),
       ],
       trin3: [sidsteAar(ctx, 13)],
@@ -867,8 +922,10 @@ const DELKONKLUSION = {
       hvorfor = Math.abs(bm[2] - bm[0]) >= Math.abs(ko2 - ko0)
         ? `, primært fordi bruttomarginen er ${bm[2] > bm[0] ? "steget" : "faldet"}`
         : `, primært fordi kapacitetsomkostningerne ${ko2 > ko0 ? "fylder mere" : "fylder mindre"} i forhold til omsætningen`;
+    if (ctx.brutto && ko0 != null && ko2 != null && bevaegelse(ctx, 2) !== "stabil")
+      hvorfor = `, fordi kapacitetsomkostningerne er gået fra ${fmtPct(ko0)} til ${fmtPct(ko2)} af bruttofortjenesten`;
     const p = profilDom(ctx, "og");
-    return `${er(ctx, 2, "Overskudsgraden")}${hvorfor}.${p ? ` Den ligger ${p} for forretningsmodellen.` : ""}`;
+    return `${er(ctx, 2, ctx.brutto ? "Overskudsgraden (af bruttofortjenesten)" : "Overskudsgraden")}${hvorfor}.${p ? ` Den ligger ${p} for forretningsmodellen.` : ""}`;
   },
   bm(ctx) {
     if (ctx.sidst(7) == null) return null;
@@ -883,7 +940,7 @@ const DELKONKLUSION = {
     const ix = ctx.M[2].indeks;
     if (ix.omsaetning == null) return null;
     const rentabel = ix.resultatPrimaerDrift == null ? null : ix.resultatPrimaerDrift >= ix.omsaetning - 5;
-    return `Omsætningen står i indeks ${fmtX(ix.omsaetning, 0)}${rentabel == null ? "." : rentabel ? ", og væksten er rentabel." : `, men resultatet af primær drift kun i indeks ${fmtX(ix.resultatPrimaerDrift, 0)} – væksten er ikke rentabel.`}`;
+    return `${stort(ctx.oms)} står i indeks ${fmtX(ix.omsaetning, 0)}${rentabel == null ? "." : rentabel ? ", og væksten er rentabel." : `, men resultatet af primær drift kun i indeks ${fmtX(ix.resultatPrimaerDrift, 0)} – væksten er ikke rentabel.`}`;
   },
   dg(ctx) {
     const dg = ctx.sidst(9);
@@ -911,14 +968,17 @@ const DELKONKLUSION = {
   arbejdskapital(ctx) {
     const l = ctx.serie(16), d = ctx.serie(17), k = ctx.serie(18);
     const netto = i => (l[i] && d[i] && k[i] ? dage(l[i]) + dage(d[i]) - dage(k[i]) : null);
-    if (netto(2) == null) return `${er(ctx, 16, "Varelagerets omsætningshastighed") || er(ctx, 17, "Varedebitorernes omsætningshastighed") || ""}.`;
+    if (netto(2) == null) {
+      const t = er(ctx, 16, "Varelagerets omsætningshastighed") || er(ctx, 17, "Varedebitorernes omsætningshastighed");
+      return t ? `${t}.` : null;
+    }
     const n0 = netto(0), n2 = netto(2);
     return `Pengecyklussen (lagerdage + debitordage − kreditordage) er ${n2} dage${n0 != null ? ` mod ${n0} dage i ${ctx.aar[0]}` : ""}. ${cyklusBetydning(n2)}${n0 != null ? ` ${cyklusAendring(n0, n2)}` : ""}`;
   },
   cf(ctx) {
     const cf = ctx.sidst(19), og = ctx.sidst(2);
     if (cf == null) return null;
-    return `${er(ctx, 19, "Pengestrømmen fra driften i procent af omsætningen")}. ${cf < 0 ? "Driften skaber ikke penge – et faresignal." : og != null && cf < og - 1 ? "Kun en del af overskuddet bliver til penge." : "Overskuddet bliver til penge."}`;
+    return `${er(ctx, 19, `Pengestrømmen fra driften i procent af ${ctx.oms}`)}. ${cf < 0 ? "Driften skaber ikke penge – et faresignal." : og != null && cf < og - 1 ? "Kun en del af overskuddet bliver til penge." : "Overskuddet bliver til penge."}`;
   },
   sol(ctx) {
     const sol = ctx.sidst(20);
@@ -957,11 +1017,13 @@ const DELKONKLUSION = {
 const INDLEDNING = {
   indtjeningsevne(ctx) {
     const og = nt(ctx, 2);
+    if (ctx.brutto)
+      return `Indtjeningsevnen undersøger nærmere overskudsgraden fra rentabilitetsanalysen${og ? ` – ${og}` : ""}. Regnskabet er i klasse B og oplyser ikke omsætningen, så overskudsgraden er regnet af bruttofortjenesten: den er det, der er tilbage af bruttofortjenesten, når kapacitetsomkostningerne er betalt. Bruttomargin, nulpunkt og sikkerhedsmargin kan ikke regnes. Indekstallene og kapacitetsgraden viser derfor, hvorfor overskudsgraden har udviklet sig, som den har.`;
     return `Indtjeningsevnen undersøger nærmere overskudsgraden fra rentabilitetsanalysen${og ? ` – ${og}` : ""}. Overskudsgraden er bruttomarginen fratrukket kapacitetsomkostningerne i procent af omsætningen. Bruttomarginen, indekstallene, den driftsmæssige gearing og robustheden viser derfor, hvorfor overskudsgraden har udviklet sig, som den har.`;
   },
   kapital(ctx) {
     const aoh = nt(ctx, 3);
-    return `Kapitaltilpasningen undersøger nærmere aktivernes omsætningshastighed fra rentabilitetsanalysen${aoh ? ` – ${aoh}` : ""}. Omsætningshastigheden afhænger af, hvor meget kapital der er bundet i anlæg, varelager og debitorer i forhold til omsætningen. Anlæggenes omsætningshastigheder og arbejdskapitalen viser derfor, hvorfor aktivernes omsætningshastighed har udviklet sig, som den har.`;
+    return `Kapitaltilpasningen undersøger nærmere aktivernes omsætningshastighed fra rentabilitetsanalysen${aoh ? ` – ${aoh}` : ""}. Omsætningshastigheden afhænger af, hvor meget kapital der er bundet i anlæg, varelager og debitorer i forhold til ${ctx.oms}.${ctx.brutto ? " Her er den regnet på bruttofortjenesten, fordi omsætningen ikke oplyses; varelagerets og debitorernes omsætningshastigheder kan derfor ikke regnes. Anlæggenes omsætningshastigheder viser derfor" : " Anlæggenes omsætningshastigheder og arbejdskapitalen viser derfor"}, hvorfor aktivernes omsætningshastighed har udviklet sig, som den har.`;
   },
 };
 
@@ -1066,7 +1128,7 @@ function vejledningsPointer(ctx, omraader) {
     },
     {
       id: "likviditet", titel: "Likviditeten: bliver overskuddet til penge?",
-      led: [dageLed, nt_led(19, "Pengestrøm fra driften i % af omsætningen"), nt_led(23, "Likviditetsgrad I"), nt_led(24, "Likviditetsgrad II")].filter(Boolean),
+      led: [dageLed, nt_led(19, `Pengestrøm fra driften i % af ${ctx.brutto ? "bruttofortjenesten" : "omsætningen"}`), nt_led(23, "Likviditetsgrad I"), nt_led(24, "Likviditetsgrad II")].filter(Boolean),
       forbindelser: [
         netto(2) != null ? `Arbejdskapital → pengestrøm: pengecyklussen er ${regnestykke(cyklus(ctx, 2))}${netto(0) != null ? ` mod ${netto(0)} dage i ${ctx.aar[0]}` : ""}. ${cyklusBetydning(netto(2))}${netto(0) != null ? ` ${cyklusAendring(netto(0), netto(2))}` : ""}` : null,
         har(19) ? `Pengestrøm → likviditet: ${lille(DELKONKLUSION.cf(ctx))}` : null,
@@ -1113,6 +1175,7 @@ function vejledningsPointer(ctx, omraader) {
       ekf != null && ag != null && r != null ? `EKF (${fmtPct(ekf)}) ligger ${ekf >= ag ? "over" : "under"} AG (${fmtPct(ag)}), fordi AG er ${ag >= r ? "højere" : "lavere"} end fremmedkapitalens forrentning (${fmtPct(r)})${g != null ? `; med en gearing på ${fmtX(g)} ${ag >= r ? "løfter" : "trækker"} lånt kapital ejernes forrentning ${ag >= r ? "op" : "ned"}` : ""}.` : null,
     ],
     indtjeningsevne: [
+      ctx.brutto && har(2) && har(10) ? `OG (af bruttofortjenesten) = 1 − 1/kapacitetsgraden: kapacitetsgraden ${fraTil(ctx, 10)}, og kapacitetsomkostningerne gik fra ${fmtPct(ko0)} til ${fmtPct(ko2)} af bruttofortjenesten. Jo mindre af bruttofortjenesten lønnen og de øvrige kapacitetsomkostninger tager, jo højere overskudsgrad.` : null,
       har(2) && bm[0] != null && ko0 != null ? `OG = bruttomargin − kapacitetsomkostninger i % af omsætningen: bruttomarginen ${fraTil(ctx, 7)}, kapacitetsomkostningerne fra ${fmtPct(ko0)} til ${fmtPct(ko2)}. ${Math.abs(bm[2] - bm[0]) >= Math.abs(ko2 - ko0) ? "Bruttomarginen" : "Kapacitetsomkostningerne"} forklarer mest af udviklingen i overskudsgraden.` : null,
       DELKONKLUSION.indeks(ctx),
       [DELKONKLUSION.robusthed(ctx), har(9) ? `Den driftsmæssige gearing er ${v(ctx, 9)}.` : null].filter(Boolean).join(" ") || null,
@@ -1143,7 +1206,7 @@ function vejledningsPointer(ctx, omraader) {
 /** "på linje med det normale" / "under det normale" / "over det normale". */
 function profilDom(ctx, noegle) {
   const p = ctx.profil;
-  if (!p) return null;
+  if (!p || (ctx.brutto && IKKE_MED_BRUTTO.has(noegle))) return null;
   const m = modProfil(ctx.sidst(PROFILNOEGLE[noegle]), p.v[noegle]);
   return m == null ? null : m === "på linje" ? "på linje med det normale" : m === "lavere" ? "under det normale" : "over det normale";
 }
@@ -1164,20 +1227,21 @@ function konkluder(ctx) {
   if (d && vaesentlig(1, ag[0], ag[2])) {
     const driver = Math.abs(d.og) >= Math.abs(d.aoh) ? "og" : "aoh";
     const op = ag[2] > ag[0];
-    (op ? styrker : svagheder).push(`Afkastningsgraden ${op ? "steg" : "faldt"} fra ${fmtPct(ag[0])} til ${fmtPct(ag[2])}, primært på grund af ${driver === "og" ? "overskudsgraden (indtjeningen pr. omsat krone)" : "aktivernes omsætningshastighed (kapitaludnyttelsen)"}.`);
+    (op ? styrker : svagheder).push(`Afkastningsgraden ${op ? "steg" : "faldt"} fra ${fmtPct(ag[0])} til ${fmtPct(ag[2])}, primært på grund af ${driver === "og" ? (ctx.brutto ? "overskudsgraden (hvor meget af bruttofortjenesten der bliver til overskud)" : "overskudsgraden (indtjeningen pr. omsat krone)") : "aktivernes omsætningshastighed (kapitaludnyttelsen)"}.`);
     if (!op) {
       if (driver === "og") {
         const [ko0, ko2] = mellemPer(ctx, "koAndel");
         const dBM = (serie(7)[2] ?? 0) - (serie(7)[0] ?? 0);
         const dKO = ko0 != null && ko2 != null ? ko2 - ko0 : 0;
-        anbefalinger.push(Math.abs(dBM) >= Math.abs(dKO)
+        if (ctx.brutto) anbefalinger.push("Tilpas kapacitetsomkostningerne – især lønnen – til bruttofortjenesten, eller øg bruttofortjenesten, så mere af den bliver til overskud.");
+        else anbefalinger.push(Math.abs(dBM) >= Math.abs(dKO)
           ? "Genopret bruttomarginen: se på priser, rabatter og indkøbsvilkår."
           : "Tilpas kapacitetsomkostningerne til aktiviteten – de er vokset hurtigere end omsætningen.");
       } else anbefalinger.push("Tilpas kapitalen til aktiviteten: nedbring lager og debitorer, eller få mere omsætning ud af de eksisterende anlæg.");
     }
   }
   if (cf[2] != null && cf[2] < 0) {
-    svagheder.push(`Driften skaber ikke penge: pengestrømmen fra primær drift er negativ (${fmtPct(cf[2])} af omsætningen).`);
+    svagheder.push(`Driften skaber ikke penge: pengestrømmen fra primær drift er negativ (${fmtPct(cf[2])} af ${ctx.oms}).`);
     anbefalinger.push("Frigør kapital i lager og debitorer, så væksten ikke skal finansieres med ny gæld.");
   }
   if (ag[2] != null && r != null && ag[2] < r) {
@@ -1205,6 +1269,7 @@ function konkluder(ctx) {
   const afvigelser = [];
   if (profil)
     for (const [k, nr] of Object.entries(PROFILNOEGLE)) {
+      if (ctx.brutto && IKKE_MED_BRUTTO.has(k)) continue;
       const m = modProfil(sidst(nr), profil.v[k]);
       if (m && m !== "på linje") afvigelser.push(`${PROFILNAVN[k]} ${formatNt(nr, sidst(nr))} (typisk ${formatNt(nr, profil.v[k])}) – ${m} end normalt`);
     }

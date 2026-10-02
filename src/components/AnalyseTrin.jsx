@@ -90,8 +90,10 @@ function Maalestokke ({ dataset, setDataset, analyse }) {
                 <thead><tr><th>Nøgletal</th><th className="num">Typisk</th><th className="num">{analyse.aar[2]}</th><th /></tr></thead>
                 <tbody>
                   {Object.entries(PROFILNOEGLE).map(([k, nr]) => {
-                    const v = analyse.beregnet[2].n[nr]
-                    const d = modProfil(v, profil.v[k])
+                    // Regnet på bruttofortjenesten: kan ikke holdes op mod profilen.
+                    const ikke = analyse.brutto && ['bm', 'og', 'aoh', 'lager', 'deb'].includes(k)
+                    const v = ikke ? null : analyse.beregnet[2].n[nr]
+                    const d = ikke ? null : modProfil(v, profil.v[k])
                     return (
                       <tr key={k}>
                         <td>{NT[nr].navn}</td>
@@ -103,6 +105,7 @@ function Maalestokke ({ dataset, setDataset, analyse }) {
                   })}
                 </tbody>
               </table>
+              {analyse.brutto && <p className="hjaelp">Regnskabet oplyser ikke omsætningen. Bruttomargin, overskudsgrad, omsætningshastigheder for aktiver, varelager og debitorer kan derfor ikke holdes op mod profilen.</p>}
             </div>
           )}
 

@@ -21,6 +21,8 @@ async function kald(del, data, kode) {
 
 /** Svaret kom ikke fra serverfunktionen – forklar, hvor det så kom fra. */
 function fejlUdenFunktion(status, tekst) {
+  if (status === 504 || status === 502 && /timeout/i.test(tekst || ""))
+    return "Claude nåede ikke at svare inden for Netlifys tidsgrænse. Prøv igen – teksten skrives i mindre bidder, så det plejer at lykkes anden gang.";
   if (status === 404) return "Serverfunktionen findes ikke her. Kør appen med 'netlify dev' eller på Netlify.";
   if (status === 401 || status === 403)
     return `Netlify afviste kaldet (${status}), før det nåede serverfunktionen – adgangskoden er ikke prøvet endnu. ` +
@@ -68,22 +70,30 @@ export function skrivOmraade(a, oid, prosa, kode) {
   }, kode);
 }
 
-export function skrivKonklusion(a, prosa, kode) {
+/** Den samlede konklusion og trin 4 – i to kald, så hvert når svar i tide. */
+export async function skrivKonklusion(a, prosa, kode) {
   const k = a.konklusion;
-  return kald("konklusion", {
+  const { samlet } = await kald("samlet", {
     virksomhed: a.navn,
-    forretningsmodel: a.forretningsmodel,
-    profil: a.profil ? `${a.profil.navn}: ${a.profil.kendetegn}` : "",
     omraader: OMRAADER.filter(o => !a.omraader[o.id].ikkeRelevant).map(o => {
       const om = a.omraader[o.id];
       return `${om.navn} – delkonklusion: ${prosa.omraader?.[o.id]?.delkonklusion || om.delkonklusion}`;
     }).join("\n\n"),
     styrker: k.styrker.join("\n"),
     svagheder: k.svagheder.join("\n"),
-    anbefalinger: k.anbefalinger.join("\n"),
-    afvigelser: k.afvigelser.join("\n"),
     samlet: k.samlet.join("\n"),
-    udkast: k.udkast.join(" "),
     beretning: a.brugCitater ? a.beretning || "" : "",
   }, kode);
+  const { trin4 } = await kald("trin4", {
+    virksomhed: a.navn,
+    forretningsmodel: a.forretningsmodel,
+    profil: a.profil ? `${a.profil.navn}: ${a.profil.kendetegn}` : "",
+    samlet,
+    styrker: k.styrker.join("\n"),
+    svagheder: k.svagheder.join("\n"),
+    anbefalinger: k.anbefalinger.join("\n"),
+    afvigelser: k.afvigelser.join("\n"),
+    udkast: k.udkast.join(" "),
+  }, kode);
+  return { samlet, trin4 };
 }

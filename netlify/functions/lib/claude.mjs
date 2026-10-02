@@ -19,7 +19,9 @@ let klient = null;
 function hentKlient() {
   if (!process.env.ANTHROPIC_API_KEY)
     throw new Opsaetningsfejl("ANTHROPIC_API_KEY er ikke sat i Netlify (Environment variables). Tjek at dens scope omfatter Functions, og deploy igen.");
-  klient ??= new Anthropic({ timeout: TIDSGRAENSE_MS, maxRetries: 1 });
+  // Ingen automatisk genprøvning: endnu et forsøg efter en langsom start
+  // ville skubbe kaldet over Netlifys tidsgrænse. Brugeren kan prøve igen.
+  klient ??= new Anthropic({ timeout: TIDSGRAENSE_MS, maxRetries: 0 });
   return klient;
 }
 

@@ -69,35 +69,56 @@ export const OMRAADESKEMA = {
   additionalProperties: false,
 };
 
-export function konklusionPrompt({ virksomhed, forretningsmodel, profil, omraader, styrker, svagheder, anbefalinger, afvigelser, samlet, udkast, beretning }) {
-  return `Du skriver den samlede konklusion (trin 4) i en vejledende besvarelse til en regnskabsanalyse. En underviser bruger den som facit.
+// Den samlede konklusion og trin 4 skrives i hvert sit kald. Samlet blev ét
+// kald for langt til at nå svar inden for Netlifys tidsgrænse – især med en
+// beskrivelse af forretningsmodellen.
+export function samletPrompt({ virksomhed, omraader, styrker, svagheder, samlet, beretning }) {
+  return `Du skriver den samlede konklusion i en vejledende besvarelse til en regnskabsanalyse. En underviser bruger den som facit.
 
 ${TRAPPE}
 
 ${REGLER}
 
-Skriv først en samlet konklusion (samlet) på 2-3 afsnit, der binder delkonklusionerne fra de fem analyseområder sammen: hvordan har rentabiliteten udviklet sig og hvorfor (overskudsgrad og omsætningshastighed), hvad betyder det for ejerne, og hvor stor er risikoen (soliditet og likviditet)? Den samlede konklusion må kun bruge målestokkene sidste år, markedsrenten og tommelfingerreglerne – ikke forretningsmodellen – så den står, også når forretningsmodellen ikke er beskrevet.
-
-Skriv derefter trin 4 (trin4) som 2-3 afsnit: byg videre på den samlede konklusion, og hold den op mod forretningsmodellen (holder den, presses den, eller skifter den?). Er forretningsmodellen ikke beskrevet, så tag udgangspunkt i, om virksomheden tjener sine penge på marginen (overskudsgraden) eller på volumen (omsætningshastigheden), og hvordan det har udviklet sig. Slut med en konkret anbefaling til ledelsen, der følger af tallene. Gentag ikke hele analysen – træk de tråde frem, der betyder noget for forretningsmodellen.
-
-Skriv også en kort "fortælling" på 2-3 sætninger til underviseren: det store billede, holdet skal ende med at se.
+Skriv en samlet konklusion (samlet) på 2-3 afsnit, der binder delkonklusionerne fra de fem analyseområder sammen: hvordan har rentabiliteten udviklet sig og hvorfor (overskudsgrad og omsætningshastighed), hvad betyder det for ejerne, og hvor stor er risikoen (soliditet og likviditet)? Brug kun målestokkene sidste år, markedsrenten og tommelfingerreglerne – ikke forretningsmodellen.
 
 Virksomhed: ${ramme(virksomhed)}
-Beskrivelse af forretningsmodellen: ${ramme(forretningsmodel || "(ikke beskrevet)")}
-Typisk profil for modellen: ${ramme(profil || "(ingen valgt)")}
 Delkonklusionerne pr. analyseområde: ${ramme(omraader)}
+Styrker: ${ramme(styrker)}
+Svagheder: ${ramme(svagheder)}
+Motorens samlede konklusion: ${ramme(samlet)}
+Ledelsesberetningen: ${ramme((beretning || "(ikke indlæst)").slice(0, 6000))}`;
+}
+
+export const SAMLETSKEMA = {
+  type: "object",
+  properties: { samlet: { type: "string" } },
+  required: ["samlet"],
+  additionalProperties: false,
+};
+
+export function trin4Prompt({ virksomhed, forretningsmodel, profil, samlet, styrker, svagheder, anbefalinger, afvigelser, udkast }) {
+  return `Du skriver trin 4 – vurderingen af forretningsmodellen – i en vejledende besvarelse til en regnskabsanalyse. En underviser bruger den som facit.
+
+${TRAPPE}
+
+${REGLER}
+
+Skriv trin 4 (trin4) som 2-3 afsnit: byg videre på den samlede konklusion, og hold den op mod forretningsmodellen (holder den, presses den, eller skifter den?). Er forretningsmodellen ikke beskrevet, så tag udgangspunkt i, om virksomheden tjener sine penge på marginen (overskudsgraden) eller på volumen (omsætningshastigheden), og hvordan det har udviklet sig. Slut med en konkret anbefaling til ledelsen, der følger af tallene. Gentag ikke hele analysen – træk de tråde frem, der betyder noget for forretningsmodellen.
+
+Virksomhed: ${ramme(virksomhed)}
+Beskrivelse af forretningsmodellen: ${ramme((forretningsmodel || "(ikke beskrevet)").slice(0, 4000))}
+Typisk profil for modellen: ${ramme(profil || "(ingen valgt)")}
+Den samlede konklusion: ${ramme(samlet)}
 Styrker: ${ramme(styrker)}
 Svagheder: ${ramme(svagheder)}
 Afvigelser fra den typiske profil: ${ramme(afvigelser)}
 Anbefalinger, der følger af tallene: ${ramme(anbefalinger)}
-Motorens samlede konklusion: ${ramme(samlet)}
-Motorens udkast til trin 4: ${ramme(udkast)}
-Ledelsesberetningen: ${ramme((beretning || "(ikke indlæst)").slice(0, 10000))}`;
+Motorens udkast til trin 4: ${ramme(udkast)}`;
 }
 
-export const KONKLUSIONSKEMA = {
+export const TRIN4SKEMA = {
   type: "object",
-  properties: { samlet: { type: "string" }, trin4: { type: "string" }, fortaelling: { type: "string" } },
-  required: ["samlet", "trin4", "fortaelling"],
+  properties: { trin4: { type: "string" } },
+  required: ["trin4"],
   additionalProperties: false,
 };

@@ -6,7 +6,7 @@
 
 import { createHash, timingSafeEqual } from "node:crypto";
 import { spoergJson, Opsaetningsfejl, ClaudeFejl } from "./lib/claude.mjs";
-import { gruppePrompt, GRUPPESKEMA, omraadePrompt, OMRAADESKEMA, konklusionPrompt, KONKLUSIONSKEMA } from "./lib/prompter.mjs";
+import { gruppePrompt, GRUPPESKEMA, omraadePrompt, OMRAADESKEMA, samletPrompt, SAMLETSKEMA, trin4Prompt, TRIN4SKEMA } from "./lib/prompter.mjs";
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
@@ -31,7 +31,8 @@ export default async function handler(req) {
     if (krop?.del === "tjek") return json({ ok: true });
     if (krop?.del === "gruppe") return json(await spoergJson(gruppePrompt(krop.data ?? {}), GRUPPESKEMA, { maxTokens: 4000 }));
     if (krop?.del === "omraade") return json(await spoergJson(omraadePrompt(krop.data ?? {}), OMRAADESKEMA, { maxTokens: 2000 }));
-    if (krop?.del === "konklusion") return json(await spoergJson(konklusionPrompt(krop.data ?? {}), KONKLUSIONSKEMA));
+    if (krop?.del === "samlet") return json(await spoergJson(samletPrompt(krop.data ?? {}), SAMLETSKEMA, { maxTokens: 3000 }));
+    if (krop?.del === "trin4") return json(await spoergJson(trin4Prompt(krop.data ?? {}), TRIN4SKEMA, { maxTokens: 3000 }));
     return json({ fejl: "Ukendt del." }, 400);
   } catch (e) {
     if (e instanceof Opsaetningsfejl) return json({ fejl: e.message }, 500);

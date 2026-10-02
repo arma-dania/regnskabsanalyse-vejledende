@@ -116,7 +116,7 @@ export function iVisningsenhed (dataset) {
 const ROLLER = {
   omsaetning: ['Revenue', 'SalesRevenue', 'RevenueFromContractsWithCustomers'],
   vareforbrug: ['CostOfSales', 'RawMaterialsAndConsumablesUsed', 'CostOfGoodsSold', 'ChangesInInventoriesOfFinishedGoodsWorkInProgressAndGoodsForResale'],
-  personaleomkostninger: ['EmployeeBenefitsExpense', 'StaffCosts', 'WagesAndSalaries', 'Salaries', 'PensionCosts', 'PostemploymentBenefitExpense', 'OtherSocialSecurityContributions', 'SocialSecurityContributions', 'OtherEmployeeBenefitsExpense', 'OtherStaffCosts'],
+  personaleomkostninger: ['EmployeeBenefitsExpense', 'StaffCosts', 'WagesAndSalaries', 'Salaries', 'PensionCosts', 'PostemploymentBenefitExpense', 'OtherSocialSecurityContributions', 'SocialSecurityContributions', 'OtherEmployeeBenefitsExpense', 'OtherEmployeeExpense', 'OtherStaffCosts'],
   // Distributions- og administrationsomkostninger i en funktionsopdelt
   // resultatopgørelse er kapacitetsomkostninger.
   andreEksterne: ['OtherExternalExpenses', 'ExternalExpenses', 'DistributionCosts', 'AdministrativeExpenses', 'AdministrativeExpense'],
@@ -125,14 +125,14 @@ const ROLLER = {
   // de finansielle poster i analyseformen – ellers falder de ud af årets
   // resultat, og egenkapitalens forrentning bliver for lav.
   finansielleIndtaegter: ['OtherFinanceIncome', 'FinanceIncome', 'FinancialIncome', 'IncomeFromInvestmentsInGroupEnterprises', 'IncomeFromInvestmentsInAssociates', 'ShareOfProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod'],
-  finansielleOmkostninger: ['OtherFinanceExpenses', 'FinanceCosts', 'FinancialExpenses'],
+  finansielleOmkostninger: ['OtherFinanceExpenses', 'RestOfOtherFinanceExpenses', 'FinanceCosts', 'FinancialExpenses'],
   skat: ['TaxExpenseOnOrdinaryActivities', 'TaxExpense', 'IncomeTaxExpenseContinuingOperations', 'IncomeTaxExpense'],
   immaterielleAnlaeg: ['IntangibleAssets'],
   materielleAnlaeg: ['PropertyPlantAndEquipment'],
   finansielleAnlaeg: ['LongtermInvestmentsAndReceivables', 'NoncurrentFinancialAssets'],
   varelager: ['Inventories'],
   varedebitorer: ['ShorttermTradeReceivables', 'TradeReceivables', 'CurrentTradeReceivables'],
-  andreTilgodehavender: ['OtherShorttermReceivables', 'OtherCurrentReceivables'],
+  andreTilgodehavender: ['OtherShorttermReceivables', 'OtherCurrentReceivables', 'ShorttermTaxReceivables'],
   likvider: ['CashAndCashEquivalents'],
   egenkapital: ['Equity'],
   hensatteForpligtelser: ['Provisions'],
@@ -178,6 +178,17 @@ const ART_FOR_BEGREB = new Map([
   ...['OtherOperatingIncome', 'ChangesInInventoriesOfFinishedGoodsWorkInProgressAndGoodsForResale', 'IncomeFromInvestmentsInGroupEnterprises', 'IncomeFromInvestmentsInAssociates', 'InterestIncomeFromGroupEnterprises', 'OtherInterestIncome'].map(b => [b.toLowerCase(), 'indtaegt']),
   ['otheroperatingexpenses', 'omkostning']
 ])
+// Delposter, der kun bruges, når regnskabet ikke også viser posten, de er
+// en del af – ellers tælles beløbet med to gange.
+const DEL_AF = {
+  restofotherfinanceexpenses: 'otherfinanceexpenses',
+  wagesandsalaries: 'employeebenefitsexpense',
+  postemploymentbenefitexpense: 'employeebenefitsexpense',
+  socialsecuritycontributions: 'employeebenefitsexpense',
+  othersocialsecuritycontributions: 'employeebenefitsexpense',
+  otheremployeeexpense: 'employeebenefitsexpense',
+  otheremployeebenefitsexpense: 'employeebenefitsexpense'
+}
 const KAPACITET_FUNKTION = ['distributioncosts', 'administrativeexpenses', 'administrativeexpense', 'otheroperatingexpenses']
 const artFor = p => {
   if (!p) return null
@@ -232,7 +243,9 @@ export function beregnAnalyse (dataset) {
     const values = {}
     FIELDS.forEach(f => { values[f.key] = null })
     const rapporteret = {}
+    const medTal = new Set(synlige.filter(p => tal?.[p.id] != null).map(begrebFor).filter(Boolean))
     synlige.forEach(p => {
+      if (medTal.has(DEL_AF[begrebFor(p)])) return
       const v = postTal(kopi, p, tal, map)
       const r = rolle(kopi, p, map)
       if (v == null || !r) return

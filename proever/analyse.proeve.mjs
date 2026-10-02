@@ -9,7 +9,7 @@ import { analyser } from "../src/analyse/analyse.js";
 import { medAfledte, balanceKontrol } from "../src/analyse/poster.js";
 import { fraDataset } from "../src/analyse/fraDataset.js";
 import { emptyDataset } from "../src/lib/model.js";
-import { beregnAlle, procentvisAendring } from "../src/lib/nogletal.js";
+import { beregnAlle, procentvisAendring, byggIndeksNogletal } from "../src/lib/nogletal.js";
 import { tjekTal } from "../src/analyse/tjek.js";
 
 const naer = (a, b, tol = 1e-9) => assert.ok(Math.abs(a - b) < tol, `${a} ≠ ${b}`);
@@ -226,4 +226,20 @@ test("afkrydsede indekstal bruges i analysen og står i tabellen", () => {
   assert.match(g.trin2.join(" "), /varebeholdninger er vokset (hurtigere|langsommere) end omsætningen/i);
   assert.equal(a.omraader.indtjeningsevne.ekstraTabel.length, 2);
   assert.match(a.omraader.indtjeningsevne.ekstraTabel[0].navn, /Indekstal – Varebeholdninger/);
+});
+
+test("indekstal for finansielle poster – og en forklaring, når basisåret er 0", () => {
+  const d = somDataset();
+  d.indeksFelter = ["finansielleIndtaegter", "finansielleOmkostninger"];
+  let ekstra = byggIndeksNogletal(d);
+  let r = beregnAlle(d, ekstra);
+  assert.equal(r[0]["indeks:finansielleOmkostninger"].value, 100);
+  d.aar[0].values.finansielleIndtaegter = 0;
+  ekstra = byggIndeksNogletal(d);
+  r = beregnAlle(d, ekstra);
+  assert.equal(r[2]["indeks:finansielleIndtaegter"].value, null);
+  assert.match(r[0]["indeks:finansielleIndtaegter"].grund, /er 0 i basisåret .* Vælg et andet basisår/);
+  delete d.aar[0].values.finansielleIndtaegter;
+  r = beregnAlle(d, byggIndeksNogletal(d));
+  assert.match(r[0]["indeks:finansielleIndtaegter"].grund, /ikke udfyldt i basisåret/);
 });

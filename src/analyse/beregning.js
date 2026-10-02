@@ -78,6 +78,12 @@ export function regnAar(kase, i, eksterne = null) {
   const b = medAfledte(kase.kolonner[1].v); // basisår for indekstal
   const skoen = f.aktiverIAlt == null || f.egenkapital == null;
 
+  // Klasse B uden omsætning: nøgletallene, der normalt bygger på omsætningen,
+  // regnes på bruttofortjenesten (som i nøgletalsappen). Bruttomargin,
+  // nulpunkt, sikkerhedsmargin og varedebitorer kan ikke regnes.
+  const brutto = !!kase.bruttoBasis && v.omsaetning == null;
+  const oms = brutto ? v.bruttoresultat : v.omsaetning;
+  const bOms = brutto ? b.bruttoresultat : b.omsaetning;
   const gA = gns(v.aktiverIAlt, f.aktiverIAlt);
   const gEK = gns(v.egenkapital, f.egenkapital);
   const gFK = gns(fk(v), fk(f));
@@ -90,24 +96,24 @@ export function regnAar(kase, i, eksterne = null) {
 
   const n = {
     1: pct(v.resultatPrimaerDrift, gA),
-    2: pct(v.resultatPrimaerDrift, v.omsaetning),
-    3: div(v.omsaetning, gA),
+    2: pct(v.resultatPrimaerDrift, oms),
+    3: div(oms, gA),
     4: pct(v.aaretsResultat, gEK),
     5: pct(v.finansielleOmkostninger, gFK),
     6: div(gFK, gEK),
     7: bm,
-    8: pct(v.omsaetning, b.omsaetning),
-    9: pct(v.kapacitetsomkostninger, v.vareforbrug == null && v.kapacitetsomkostninger == null ? null : (v.vareforbrug ?? 0) + (v.kapacitetsomkostninger ?? 0)),
+    8: pct(oms, bOms),
+    9: brutto && v.vareforbrug == null ? null : pct(v.kapacitetsomkostninger, v.vareforbrug == null && v.kapacitetsomkostninger == null ? null : (v.vareforbrug ?? 0) + (v.kapacitetsomkostninger ?? 0)),
     10: div(v.bruttoresultat, v.kapacitetsomkostninger),
     11: nulpunkt,
     12: nulpunkt == null ? null : pct(v.omsaetning - nulpunkt, v.omsaetning),
-    13: div(v.omsaetning, v.anlaegsaktiver),
-    14: div(v.omsaetning, v.immaterielleAnlaeg),
-    15: div(v.omsaetning, v.materielleAnlaeg),
+    13: div(oms, v.anlaegsaktiver),
+    14: div(oms, v.immaterielleAnlaeg),
+    15: div(oms, v.materielleAnlaeg),
     16: div(v.vareforbrug, v.varelager),
     17: div(v.omsaetning, v.varedebitorer),
     18: div(varekoeb, v.leverandoergaeld),
-    19: pct(v.pengestroemPrimaerDrift, v.omsaetning),
+    19: pct(v.pengestroemPrimaerDrift, oms),
     20: pct(v.egenkapital, v.aktiverIAlt),
     21: pct(v.anlaegsaktiver, v.aktiverIAlt),
     22: div(v.anlaegsaktiver, v.egenkapital == null ? null : v.egenkapital + (v.langfristetGaeld ?? 0)),
@@ -126,19 +132,19 @@ export function regnAar(kase, i, eksterne = null) {
   // af gennemsnitlig egenkapital, så de kan lægges sammen.
   const mellem = {
     v, gA, gEK, gFK, varekoeb,
-    koAndel: pct(v.kapacitetsomkostninger, v.omsaetning),
+    koAndel: pct(v.kapacitetsomkostninger, oms),
     indeks: {
-      omsaetning: pct(v.omsaetning, b.omsaetning),
+      omsaetning: pct(oms, bOms),
       bruttoresultat: pct(v.bruttoresultat, b.bruttoresultat),
       kapacitetsomkostninger: pct(v.kapacitetsomkostninger, b.kapacitetsomkostninger),
       resultatPrimaerDrift: pct(v.resultatPrimaerDrift, b.resultatPrimaerDrift),
     },
     // Kapitalbinding pr. omsætningskrone (ultimo), i procent af omsætningen.
     binding: {
-      anlaeg: pct(v.anlaegsaktiver, v.omsaetning),
-      varelager: pct(v.varelager, v.omsaetning),
-      debitorer: pct(v.varedebitorer, v.omsaetning),
-      oevrige: v.omsaetningsaktiver == null ? null : pct(v.omsaetningsaktiver - (v.varelager ?? 0) - (v.varedebitorer ?? 0), v.omsaetning),
+      anlaeg: pct(v.anlaegsaktiver, oms),
+      varelager: pct(v.varelager, oms),
+      debitorer: pct(v.varedebitorer, oms),
+      oevrige: v.omsaetningsaktiver == null ? null : pct(v.omsaetningsaktiver - (v.varelager ?? 0) - (v.varedebitorer ?? 0), oms),
     },
     skoen: skoen || !!eksterne?.skoen,
   };

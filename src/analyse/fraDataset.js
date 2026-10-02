@@ -2,7 +2,7 @@
 // de beregnede nøgletal går direkte videre til analysen. Intet tastes to gange.
 
 import { iVisningsenhed, withDerived, enhedFaktor, FIELD_MAP } from "../lib/model.js";
-import { beregnAlle, byggIndeksNogletal } from "../lib/nogletal.js";
+import { beregnAlle, byggIndeksNogletal, beregnesPaaBrutto } from "../lib/nogletal.js";
 import { UDBYTTE_UDGAVE } from "../lib/beretning.js";
 
 // Nøgletalsappens enhed ("1.000 kr.") i analysens korte form ("t.kr.").
@@ -73,6 +73,8 @@ export function fraDataset(dataset, fund = []) {
       ...vist.aar.map((y, i) => ({ aar: aar[i], v: withDerived(y.values) })),
     ],
   };
+  // Klasse B: brugeren har valgt at regne på bruttofortjenesten.
+  kase.bruttoBasis = beregnesPaaBrutto(dataset);
   const noegletal = beregnAlle(dataset).map(r => {
     const n = Object.fromEntries(Object.entries(r).map(([nr, x]) => [nr, x.value]));
     n.skoen = Object.values(r).some(x => x.skoen);
@@ -80,7 +82,7 @@ export function fraDataset(dataset, fund = []) {
   });
   // De indekstal, brugeren har krydset af under "Nøgletal og grafer" – med
   // det valgte basisår. Omsætningen er allerede nøgletal 8.
-  const ekstra = byggIndeksNogletal(dataset).filter(n => n.nr !== "indeks:omsaetning");
+  const ekstra = byggIndeksNogletal(dataset).filter(n => n.nr !== "indeks:omsaetning" && !(beregnesPaaBrutto(dataset) && n.nr === "indeks:bruttoresultat"));
   const resE = ekstra.length ? beregnAlle(dataset, ekstra) : [];
   kase.indekstal = ekstra.map(n => {
     const key = n.nr.slice("indeks:".length);
@@ -88,8 +90,9 @@ export function fraDataset(dataset, fund = []) {
   }).filter(x => x.serie.some(v => v != null));
   kase.indeksBasis = aar[dataset.indeksBasisaar ?? 0] || aar[0];
   kase.indeksOmsaetning = (() => {
-    const oms = byggIndeksNogletal({ ...dataset, indeksFelter: ["omsaetning"] });
-    return beregnAlle(dataset, oms).map(r => r["indeks:omsaetning"]?.value ?? null);
+    const felt = kase.bruttoBasis ? "bruttoresultat" : "omsaetning";
+    const oms = byggIndeksNogletal({ ...dataset, indeksFelter: [felt] });
+    return beregnAlle(dataset, oms).map(r => r[`indeks:${felt}`]?.value ?? null);
   })();
   return { kase, noegletal, indlaest };
 }

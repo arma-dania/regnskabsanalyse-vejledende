@@ -243,3 +243,27 @@ test("indekstal for finansielle poster – og en forklaring, når basisåret er 
   r = beregnAlle(d, byggIndeksNogletal(d));
   assert.match(r[0]["indeks:finansielleIndtaegter"].grund, /ikke udfyldt i basisåret/);
 });
+
+test("klasse B: analysen bygger på bruttofortjenesten og taler ikke om omsætning", () => {
+  const d = somDataset();
+  // Bruttofortjenesten er en indtastet post, når omsætningen mangler.
+  for (const y of [...d.aar.map(x => x.values), d.primo]) {
+    if (y.omsaetning != null) y.bruttoresultat = y.omsaetning - y.vareforbrug;
+    delete y.omsaetning; delete y.vareforbrug;
+  }
+  d.bruttoBasis = true;
+  const { kase, noegletal } = fraDataset(d);
+  assert.equal(kase.bruttoBasis, true);
+  const a = analyser(kase, noegletal);
+  assert.equal(a.brutto, true);
+  const og = a.omraader.rentabilitet.tabel.find(r => r.nr === 2);
+  assert.equal(og.navn, "Overskudsgrad (af bruttofortjeneste)");
+  assert.ok(og.vaerdier[2] != null);
+  const ix = a.omraader.indtjeningsevne.grupper.find(g => g.id === "indeks");
+  assert.ok(ix, "indekstallet regnes på bruttofortjenesten");
+  assert.match(ix.trin1.join(" "), /Indekstallet for bruttofortjenesten/);
+  const alt = JSON.stringify([a.omraader, a.konklusion]);
+  assert.equal(alt.match(/omsat krone|i procent af omsætningen|bruttomarginen (er|faldt|steg)|Genopret bruttomarginen/)?.[0], undefined);
+  assert.match(a.omraader.rentabilitet.grupper.find(g => g.id === "og").trin3.join(" "), /kan det ikke sammenlignes med en almindelig overskudsgrad/);
+  assert.match(a.omraader.indtjeningsevne.indledning, /klasse B/);
+});

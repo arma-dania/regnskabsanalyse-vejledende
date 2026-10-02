@@ -75,6 +75,7 @@ export function buildContext (dataset, index) {
  */
 export function byggIndeksNogletal (dataset) {
   const felter = Array.isArray(dataset.indeksFelter) ? dataset.indeksFelter : [dataset.indeksFelt || 'omsaetning']
+  const basisNavn = dataset.aar[dataset.indeksBasisaar ?? 0]?.label || 'basisåret'
   return felter.map(key => {
     const label = FIELD_MAP[key]?.label || key
     return {
@@ -87,7 +88,19 @@ export function byggIndeksNogletal (dataset) {
       naevner: 'Basisårets tal',
       bedre: 'op',
       forklaring: `Indeksberegning for ${label}. Indeks 100 i basisåret; tallet viser udviklingen i procent af basisåret.`,
-      calc: c => ({ num: c.v[key], den: c.basis[key], pct: true })
+      basisNavn,
+      // Hvorfor indekset ikke kan beregnes – vises på kortet i stedet for
+      // den generelle besked.
+      calc: c => ({
+        num: c.v[key],
+        den: c.basis[key],
+        pct: true,
+        grund: c.basis[key] == null
+          ? `${label} er ikke udfyldt i basisåret ${basisNavn}. Tjek posten i analyseformen.`
+          : c.basis[key] === 0
+            ? `${label} er 0 i basisåret ${basisNavn}, og et indeks kan ikke regnes ud fra 0. Vælg et andet basisår.`
+            : null
+      })
     }
   })
 }
@@ -295,6 +308,7 @@ export function beregnAar (dataset, index, ekstraNogletal = []) {
       value,
       num: r.num == null ? null : (r.pct ? r.num * 100 : r.num),
       den: r.den,
+      grund: r.grund || null,
       skoen: !!r.skoen
     }
   })

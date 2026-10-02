@@ -72,7 +72,7 @@ export default function NogletalKort ({ nogletal: n, resultater, aarNavne, enhed
             )
           : (
             <p className="forklaring" style={{ padding: '22px 0' }}>
-              {n.ikkeBeregnet || <>Kan ikke beregnes med de indtastede tal. {manglerTekst(n)}</>}
+              {n.ikkeBeregnet || resultater.find(r => r[n.nr]?.grund)?.[n.nr].grund || <>Kan ikke beregnes med de indtastede tal. {manglerTekst(n)}</>}
             </p>
             )}
       </div>
